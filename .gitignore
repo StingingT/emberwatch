@@ -1,0 +1,12 @@
+.godot/
+builds/
+artifacts/
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+.env
+*.p12
+*.p8
+*.mobileprovision
+export_credentials.cfg
