@@ -4,6 +4,8 @@ Working title only. User authorized implementation on 2026-09-08. Godot 4.7 stab
 
 ## Active scope and decisions
 
+The first playable has passed acceptance. The current user goal is to continue finishing the game. `docs/campaign_plan.md` promotes a six-mission campaign, versioned local profile, onboarding and settings into active scope and defines their integration interfaces. Earlier initial-slice restrictions below describe the accepted baseline; this promotion supersedes their hold on campaign work.
+
 CONTINUE: implement the reference's full first playable loop, then validate it before campaign expansion. Portrait 720 x 1280 design canvas, angled orthographic camera, original simplified 3D. Joystick or WASD movement, auto-target/fire while moving, nearby construction, Space/touch Volley. Purchases happen in live combat. Fixed enemy route; walls at designated route checkpoints are attacked until destroyed. Only hero finishing blows grant XP. Physical coins collect within a magnet radius. No paid assets or online services.
 
 The user's current direction is to continue desktop gameplay development and polish now. Native iPhone testing is a later or parallel workstream, required before calling the phone version tested. Scheduling the Mac handoff, configuring signing or awaiting physical-device evidence does not block further gameplay development.

@@ -8,6 +8,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	game = GameScript.new()
+	game.persistent_profile = false
 	root.add_child(game)
 	await process_frame
 	await process_frame

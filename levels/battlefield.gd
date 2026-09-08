@@ -10,24 +10,25 @@ func setup(level: Dictionary) -> void:
 		remove_child(child)
 		child.queue_free()
 	var bounds: Rect2 = level.get("bounds", Rect2(-10, -30, 20, 43))
+	var palette: Dictionary = level.get("palette", {})
 	var route: Array[Vector3] = []
 	for point: Vector3 in level.get("route", []):
 		route.append(point)
-	_daylight()
-	_grassland(bounds)
+	_daylight(palette)
+	_grassland(bounds, palette)
 	if route.size() >= 2:
-		_trail(route, 3.45, 0.012, Color("aab273"), "RoadShoulder")
-		_trail(route, 2.95, 0.022, Color("d7bf85"), "GoldenTrail")
+		_trail(route, 3.45, 0.012, palette.get("shoulder", Color("aab273")), "RoadShoulder")
+		_trail(route, 2.95, 0.022, palette.get("trail", Color("d7bf85")), "GoldenTrail")
 		_trail_details(route)
 	_edges(bounds)
 	_keep_approach(level.get("keep", Vector3(0, 0, 9)))
 
-func _daylight() -> void:
+func _daylight(palette: Dictionary) -> void:
 	var sky := WorldEnvironment.new()
 	sky.name = "WarmDaylight"
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("acc6b1")
+	environment.background_color = palette.get("sky", Color("acc6b1"))
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.93, 0.96, 1.0)
 	environment.ambient_light_energy = 0.72
@@ -46,7 +47,7 @@ func _daylight() -> void:
 	sun.shadow_normal_bias = 1.0
 	add_child(sun)
 
-func _grassland(bounds: Rect2) -> void:
+func _grassland(bounds: Rect2, palette: Dictionary) -> void:
 	var random := RandomNumberGenerator.new()
 	random.seed = 2080912
 	var outer: Rect2 = bounds.grow(28.0)
@@ -64,7 +65,7 @@ func _grassland(bounds: Rect2) -> void:
 			positions.append(Vector3(x, -0.005, z))
 	var builder := SurfaceTool.new()
 	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var base := Color("83a866")
+	var base: Color = palette.get("grass", Color("83a866"))
 	for z_index: int in range(rows):
 		for x_index: int in range(columns):
 			var a: int = z_index * (columns + 1) + x_index

@@ -12,8 +12,14 @@ const BuildingScript = preload("res://game/building.gd")
 const HudScript = preload("res://ui/hud.gd")
 const SoundScript = preload("res://game/sound_bank.gd")
 const FeedbackScript = preload("res://game/world_feedback.gd")
+const Campaign = preload("res://game/campaign_data.gd")
+const ProfileScript = preload("res://game/player_profile.gd")
 
 var state: String = "menu"
+var persistent_profile: bool = true
+var profile: RefCounted
+var missions: Array[Dictionary] = []
+var mission_index: int = 0
 var hero: Node3D
 var camera: Camera3D
 var hud: CanvasLayer
@@ -41,31 +47,42 @@ var _actors: Node3D
 var _projectiles: Node3D
 var _coins: Node3D
 var _structures: Node3D
+var _world: Node3D
+var _keep_model: Node3D
+var _plot_root: Node3D
 var _selection: Node3D
 var _range_ring: Node3D
 var _camera_focus: Vector3
 var _ui_timer: float = 0.0
 var _last_keep_warning: float = -10.0
+var _used_volley: bool = false
+var _run_start: Vector3
 
 func _ready() -> void:
-	level = Data.level()
-	wave_configs = Data.waves()
+	missions = Campaign.missions()
+	profile = ProfileScript.new()
+	if not persistent_profile or DisplayServer.get_name() == "headless":
+		profile.save_path = ""
+	profile.load_profile()
+	level = missions[0]["level"].duplicate(true)
+	wave_configs.assign(missions[0]["waves"])
 	plots.assign(level["plots"])
-	var world: Node3D = WorldScript.new()
-	world.name = "BriarwoodCrossing"
-	add_child(world)
-	world.setup(level)
+	_world = WorldScript.new()
+	_world.name = "Battlefield"
+	add_child(_world)
+	_world.setup(level)
 	_actors = _container("Actors")
 	_projectiles = _container("Projectiles")
 	_coins = _container("Coins")
 	_structures = _container("Structures")
-	var keep_model: Node3D = Visuals.building("keep", 3)
-	keep_model.position = level["keep"]
-	_structures.add_child(keep_model)
+	_keep_model = Visuals.building("keep", 3)
+	_keep_model.position = level["keep"]
+	_structures.add_child(_keep_model)
+	_plot_root = _container("Plots")
 	for plot: Dictionary in plots:
 		var view: Node3D = Visuals.plot(str(plot["category"]))
 		view.position = plot["position"]
-		add_child(view)
+		_plot_root.add_child(view)
 		plot_views[plot["id"]] = view
 	_selection = Visuals.ring(1.6, Color("ffe2a3"))
 	add_child(_selection)
@@ -87,7 +104,11 @@ func _ready() -> void:
 	add_child(sounds)
 	hud = HudScript.new()
 	add_child(hud)
-	hud.play_requested.connect(start_run)
+	hud.play_requested.connect(start_recommended_mission)
+	hud.campaign_requested.connect(show_campaign)
+	hud.mission_requested.connect(start_mission)
+	hud.next_requested.connect(next_mission)
+	hud.setting_changed.connect(change_setting)
 	hud.restart_requested.connect(start_run)
 	hud.menu_requested.connect(return_to_menu)
 	hud.pause_requested.connect(pause_run)
@@ -97,11 +118,84 @@ func _ready() -> void:
 	hud.smith_requested.connect(buy_smith_upgrade)
 	hud.ability_requested.connect(use_ability)
 	hud.sound_toggled.connect(_on_sound_toggled)
+	_apply_preferences()
 	_spawn_hero()
 	_camera_focus = hero.position + Vector3(0, 0, -2)
 	_update_camera(1.0)
 	hud.show_title()
 	_update_hud()
+	if not str(profile.last_error).is_empty():
+		hud.set_save_notice("Save recovery: " + str(profile.last_error))
+
+func mission_unlocked(index: int) -> bool:
+	return index >= 0 and index < missions.size() and (index == 0 or profile.data["results"].has(missions[index - 1]["id"]))
+
+func campaign_rows() -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for index: int in range(missions.size()):
+		var mission: Dictionary = missions[index]
+		var result: Dictionary = profile.data["results"].get(mission["id"], {})
+		rows.append({"id": mission["id"], "name": mission["name"], "briefing": mission["briefing"],
+			"unlocked": mission_unlocked(index), "stars": int(result.get("stars", 0))})
+	return rows
+
+func campaign_complete() -> bool:
+	for mission: Dictionary in missions:
+		if not profile.data["results"].has(mission["id"]):
+			return false
+	return true
+
+func show_campaign() -> void:
+	state = "campaign"
+	feedback.clear()
+	hero.move_input = Vector2.ZERO
+	hud.reset_input()
+	hud.show_context({})
+	hud.show_campaign(campaign_rows())
+
+func start_recommended_mission() -> void:
+	for mission: Dictionary in missions:
+		if not profile.data["results"].has(mission["id"]):
+			start_mission(str(mission["id"]))
+			return
+	show_campaign()
+
+func start_mission(id: String) -> bool:
+	if is_playing():
+		return false
+	var index: int = -1
+	for candidate: int in range(missions.size()):
+		if str(missions[candidate]["id"]) == id:
+			index = candidate
+			break
+	if not mission_unlocked(index):
+		return false
+	state = "resetting"
+	mission_index = index
+	level = missions[index]["level"].duplicate(true)
+	wave_configs.assign(missions[index]["waves"])
+	plots.assign(level["plots"])
+	for view: Node in _plot_root.get_children():
+		_plot_root.remove_child(view)
+		view.queue_free()
+	plot_views.clear()
+	for plot: Dictionary in plots:
+		var view: Node3D = Visuals.plot(str(plot["category"]))
+		view.position = plot["position"]
+		_plot_root.add_child(view)
+		plot_views[plot["id"]] = view
+	_world.setup(level)
+	_keep_model.position = level["keep"]
+	start_run()
+	return true
+
+func next_mission() -> void:
+	if state != "won":
+		return
+	if mission_index + 1 < missions.size():
+		start_mission(str(missions[mission_index + 1]["id"]))
+	else:
+		show_campaign()
 
 func _container(label: String) -> Node3D:
 	var node: Node3D = Node3D.new()
@@ -133,11 +227,11 @@ func start_run() -> void:
 	selected_plot = {}
 	for view: Node3D in plot_views.values():
 		view.visible = true
-	coins = Data.STARTING_COINS
+	coins = int(level.get("starting_coins", Data.STARTING_COINS))
 	coins_collected = 0
 	kills = 0
-	keep_health = Data.KEEP_HEALTH
-	keep_max = Data.KEEP_HEALTH
+	keep_health = base_keep_health()
+	keep_max = base_keep_health()
 	smith_levels = {"ranged": 0, "haste": 0, "fortify": 0}
 	wave_index = -1
 	wave_cursor = 0
@@ -145,12 +239,27 @@ func start_run() -> void:
 	wave_timer = Data.PREPARATION_TIME
 	elapsed = 0.0
 	_last_keep_warning = -10.0
+	_used_volley = false
 	_spawn_hero()
+	_run_start = hero.position
+	_camera_focus = hero.position + Vector3(0, 0, -2)
+	_update_camera(1.0)
+	_refresh_range_ring()
 	state = "playing"
 	hud.show_game()
 	_update_selection()
 	_update_hud()
 	notify("Build a tower nearby, then head up the trail.", "info")
+
+func base_keep_health() -> float:
+	return float(level.get("keep_health", Data.KEEP_HEALTH))
+
+func building_limit(kind: String) -> int:
+	var overrides: Dictionary = level.get("building_limits", {})
+	return maxi(0, int(overrides.get(kind, Data.BUILDINGS[kind]["limit"])))
+
+func reduced_motion() -> bool:
+	return is_instance_valid(profile) and bool(profile.data["settings"]["reduced_motion"])
 
 func is_playing() -> bool:
 	return state == "playing"
@@ -386,7 +495,7 @@ func _context() -> Dictionary:
 			var spec: Dictionary = Data.BUILDINGS[kind]
 			if spec["category"] != selected_plot["category"]:
 				continue
-			var below_limit: bool = building_count(kind) < int(spec["limit"])
+			var below_limit: bool = building_count(kind) < building_limit(kind)
 			options.append({"id": kind, "label": spec["name"], "cost": int(spec["costs"][0]),
 				"description": spec["description"] if below_limit else "Building limit reached",
 				"enabled": coins >= int(spec["costs"][0]) and below_limit})
@@ -404,7 +513,7 @@ func build_at(plot_id: String, kind: String) -> bool:
 		return false
 	var spec: Dictionary = Data.BUILDINGS[kind]
 	var cost: int = int(spec["costs"][0])
-	if spec["category"] != plot["category"] or coins < cost or building_count(kind) >= int(spec["limit"]):
+	if spec["category"] != plot["category"] or coins < cost or building_count(kind) >= building_limit(kind):
 		return false
 	var clear_position: Vector3 = _construction_clearance(plot["position"], kind)
 	if not clear_position.is_finite():
@@ -480,14 +589,15 @@ func buy_smith_upgrade(id: String) -> void:
 	smith_levels[id] = int(smith_levels[id]) + 1
 	if id == "fortify":
 		var previous_max: float = keep_max
-		keep_max = Data.KEEP_HEALTH * fortify_multiplier()
+		keep_max = base_keep_health() * fortify_multiplier()
 		keep_health += keep_max - previous_max
 		for building: Node3D in buildings.values():
 			if building.kind == "wall":
 				building.apply_fortification()
-	var tween: Tween = smith.create_tween()
-	tween.tween_property(smith.model, "scale", Vector3(1.08, 1.15, 1.08), 0.12)
-	tween.tween_property(smith.model, "scale", Vector3.ONE, 0.18)
+	if not reduced_motion():
+		var tween: Tween = smith.create_tween()
+		tween.tween_property(smith.model, "scale", Vector3(1.08, 1.15, 1.08), 0.12)
+		tween.tween_property(smith.model, "scale", Vector3.ONE, 0.18)
 	play_sound("build")
 	notify(Data.SMITH[id]["description"], "success")
 	_update_selection()
@@ -569,7 +679,8 @@ func _construction_clearance(center: Vector3, kind: String) -> Vector3:
 
 func use_ability() -> void:
 	if is_playing():
-		hero.use_ability()
+		if hero.use_ability():
+			_used_volley = true
 
 func pause_run() -> void:
 	if not is_playing():
@@ -595,14 +706,26 @@ func return_to_menu() -> void:
 	hud.show_title()
 
 func _finish_run(won: bool) -> void:
+	if not is_playing():
+		return
 	state = "won" if won else "lost"
 	feedback.clear()
 	hud.reset_input()
 	hero.move_input = Vector2.ZERO
 	play_sound("win" if won else "lose")
+	var stars: int = 0
+	var saved: bool = true
+	if won:
+		var health_ratio: float = keep_health / maxf(1.0, keep_max)
+		stars = 3 if health_ratio >= float(Data.STAR_HEALTH_THRESHOLDS["three"]) else (2 if health_ratio >= float(Data.STAR_HEALTH_THRESHOLDS["two"]) else 1)
+		saved = profile.record_victory(str(missions[mission_index]["id"]), stars, maxf(0.01, elapsed))
+		hud.set_save_notice("" if saved else "Progress is available this session, but could not be saved.")
 	hud.show_context({})
 	hud.show_result(won, {"kills": kills, "coins": coins_collected, "wave": wave_index + 1,
-		"total_waves": wave_configs.size()})
+		"total_waves": wave_configs.size(), "stars": stars, "mission_name": missions[mission_index]["name"],
+		"next_available": won and mission_index + 1 < missions.size(),
+		"campaign_complete": won and campaign_complete(),
+		"save_failed": not saved})
 	_update_hud()
 
 func _update_hud() -> void:
@@ -626,6 +749,22 @@ func _update_hud() -> void:
 		"ability_unlocked": hero.tier >= int(Data.HERO["ability_unlock"]),
 		"ability_cooldown": hero.ability_cooldown, "ability_total": float(Data.HERO["ability_cooldown"]),
 		"threat_text": "%d enemies near the Keep ↓" % threats if threats > 0 else ""})
+	_update_tutorial()
+
+func _update_tutorial() -> void:
+	var hint: String = ""
+	if is_playing() and mission_index == 0 and bool(profile.data["settings"]["tutorial_hints"]) and not profile.data["results"].has(missions[mission_index]["id"]):
+		if elapsed < 8.0 and hero.position.distance_to(_run_start) < 1.0:
+			hint = "Drag the stick or use WASD. Your archer fires automatically."
+		elif buildings.is_empty():
+			hint = "Move beside a marked plot, then buy a tower to defend the trail."
+		elif coins_collected == 0:
+			hint = "Walk near gold to collect it. Spend it on stronger defenses."
+		elif hero.tier < int(Data.HERO["ability_unlock"]):
+			hint = "Your archer's kills earn XP. Level 2 unlocks Volley."
+		elif not _used_volley:
+			hint = "Use Volley near a group of goblins. Tap the gold button or Space."
+	hud.show_hint(hint)
 
 func notify(message: String, tone: String = "info") -> void:
 	if is_instance_valid(hud):
@@ -637,7 +776,19 @@ func play_sound(kind: String) -> void:
 		sounds.play(key)
 
 func _on_sound_toggled(enabled: bool) -> void:
-	sounds.enabled = enabled
+	change_setting("sound", enabled)
+
+func change_setting(key: String, value: bool) -> void:
+	var saved: bool = profile.set_setting(key, value)
+	_apply_preferences()
+	hud.set_save_notice("" if saved else "Settings changed for this session; saving is unavailable.")
+	if not saved:
+		notify("Settings changed for this session; saving is unavailable.", "danger")
+
+func _apply_preferences() -> void:
+	var settings: Dictionary = profile.data["settings"]
+	sounds.enabled = bool(settings["sound"]) and DisplayServer.get_name() != "headless"
+	hud.set_preferences(settings)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED:

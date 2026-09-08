@@ -44,6 +44,7 @@ const KEEP_HEALTH: float = 450.0
 const BUILD_RADIUS: float = 3.5
 const PREPARATION_TIME: float = 5.0
 const BETWEEN_WAVES: float = 5.0
+const STAR_HEALTH_THRESHOLDS: Dictionary = {"two": 0.4, "three": 0.8}
 
 static func level() -> Dictionary:
 	var route: Array[Vector3] = [Vector3(0, 0, -28), Vector3(4, 0, -22),

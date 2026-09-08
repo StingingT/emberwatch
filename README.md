@@ -1,19 +1,23 @@
 # Emberwatch
 
-An original portrait action tower-defense game inspired by the fast combat/building loop described in the supplied Kingshot-commercial design. Working title; one playable defense level for feedback.
+An original portrait action tower-defense game inspired by the fast combat/building loop described in the supplied Kingshot-commercial design. Six missions form an offline campaign with saved unlocks and results. Working title; full-game development continues.
 
 ## Play on Windows
 
 Use **Godot 4.7 stable, standard edition**. Double-click **play_windows.cmd**, or import **project.godot** into Godot and press **F6** with the main scene open / **F5** to run the project. The launcher accepts a custom executable through `GODOT_BIN` or `tools/run_windows.ps1 -GodotPath <path>`.
 
-1. Select **Defend the Keep**.
+1. Select **Defend the Keep** to start the next unbeaten mission, or **Campaign** to select an unlocked mission.
 2. Move with **WASD / arrow keys** or drag the on-screen stick. Your archer aims and fires automatically.
 3. Walk near an empty plot and click its build button. **E** builds/upgrades the nearest plot on desktop (support plots default to Mine; use buttons to choose Smith).
 4. Walk near dropped coins to collect them. Building and upgrading spend the same gold during combat.
 5. Hero kills earn XP. At level 2, **Space / Volley** fires a stronger multi-target attack.
-6. Protect the Keep through six waves. **Escape / II** pauses; retry and title controls are on pause/results screens.
+6. Protect the Keep through each mission's five to seven waves. Win to unlock the next mission; use **Next mission** or replay for a better rating. **Escape / II** pauses.
 
 Suggested first move: build the nearby Archer Tower for 40 gold, then head north toward incoming enemies. Walls buy time; Mine coins must be collected; the Smith strengthens towers and fortifications. Smith upgrades apply for the current run. Restart resets the run.
+
+Mission cards explain the strategic variation. Sunscar has one support plot, so choose a Mine or Smith. Moonfen allows two Mines. Win with at least 40%/80% Keep health for two/three stars; any victory earns one. Replaying cannot reduce your best rating or time.
+
+**Settings** on the title and pause screens control sound, reduced motion, larger controls and tutorial hints. Completed missions and preferences save locally with a recovery backup. Closing the app during an unfinished battle currently loses that battle's state; interrupted-run restoration remains in development.
 
 ## Play on Mac and test iPhone
 
@@ -25,12 +29,13 @@ To make a portable source archive, run `powershell -NoProfile -ExecutionPolicy B
 
 ## What is implemented
 
-- A large scrolling 3D battlefield, controllable red archer, green goblins/scouts/brutes, six waves and a vulnerable Keep.
+- Six scrolling 3D battlefields with different routes, palettes and plot strategies; a controllable red archer, green goblins/scouts/brutes and a vulnerable Keep.
 - Auto bow combat, real flying arrows, physical gold, hero XP, level-ups and active Volley.
 - Impact flashes, floating collected-gold totals, and wave progress counting both incoming and surviving enemies.
 - Fixed plots; Archer Tower, Wall, Mine and Smith; three visible tiers per building; configurable caps/costs.
 - Three nearby Smith purchases: tower damage, tower attack rate, wall/Keep health.
 - Portrait native multi-touch, safe-area layout, pause/restart/win/loss, original procedural art and synthesized effects.
+- Campaign unlocks, best star/time records, a final ending, recoverable local profile, contextual first-run guidance and persistent accessibility/settings choices.
 
 ## Project structure
 
@@ -38,6 +43,8 @@ To make a portable source archive, run `powershell -NoProfile -ExecutionPolicy B
 | --- | --- |
 | `game/game.gd` | Run state, waves, economy and integration |
 | `game/game_data.gd` | Hero/enemy/building balance and level layout |
+| `game/campaign_data.gd` | Six mission layouts, wave rosters and strategic variations |
+| `game/player_profile.gd` | Versioned local progress/settings and recovery |
 | `game/building.gd` | Tower fire, wall health, mine production, upgrades |
 | `game/world_feedback.gd` | Bounded impact flashes and combined gold pickup labels |
 | `entities/` | Hero, enemies, arrows and coins |
@@ -58,12 +65,17 @@ GODOT=/Applications/Godot.app/Contents/MacOS/Godot
 "$GODOT" --headless --path . --script tests/check_combat.gd --fixed-fps 60 --quit-after 4000
 "$GODOT" --headless --path . --script tests/check_ui.gd --fixed-fps 60 --quit-after 4000
 "$GODOT" --headless --path . --script tests/check_feedback.gd --fixed-fps 60 --quit-after 4000
+"$GODOT" --headless --path . --script tests/check_profile.gd --fixed-fps 60 --quit-after 4000
+"$GODOT" --headless --path . --script tests/check_campaign.gd --fixed-fps 60 --quit-after 4000
 "$GODOT" --headless --path . --script tests/check_playthrough.gd --fixed-fps 60 --quit-after 120000
+"$GODOT" --headless --path . --script tests/check_campaign_playthrough.gd --fixed-fps 60 --quit-after 150000
 ```
 
 Check success markers and error output as well as exit codes: Godot may return exit 0 after a script error. Capture scenes are staged visual QA; they do not prove balance or a completed normal run.
 
 The supplied reference is preserved in `docs/kingshot_design_reference.md`. Current decisions and boundaries are in `docs/architecture.md`; the larger roadmap remains in `PROJECT_PLAN.md`.
+
+The current campaign scope and remaining full-game work are recorded in `docs/campaign_plan.md`. Tests and rendered fixtures use memory-only or isolated profiles and never overwrite player progress.
 
 Building tier caps and Smith price scaling live in `game/game_data.gd`, alongside the other balance values. Routine balance changes do not require editing purchase logic.
 

@@ -63,6 +63,10 @@ func _physics_process(delta: float) -> void:
 		_model.position.y = absf(sin(_walk_phase)) * 0.07 if moving else 0.0
 		_model.rotation.z = sin(_walk_phase * 0.5) * 0.05 if moving else _attack_swing * 0.17
 		_model.scale = _rest_scale * Vector3(1.0 + _hit_flash * 0.15, 1.0 - _hit_flash * 0.12, 1.0 + _hit_flash * 0.15)
+		if game.reduced_motion():
+			_model.position.y = 0.0
+			_model.rotation.z = 0.0
+			_model.scale = _rest_scale
 
 
 func take_damage(amount: float, source: String) -> void:
@@ -167,6 +171,8 @@ func _update_health_bar() -> void:
 
 func _make_death_feedback() -> void:
 	if not is_instance_valid(_model) or not is_inside_tree():
+		return
+	if game.reduced_motion():
 		return
 	# The short-lived model has no gameplay identity after the kill callback.
 	var corpse: Node3D = _model

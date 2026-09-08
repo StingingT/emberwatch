@@ -31,6 +31,9 @@ func _physics_process(delta: float) -> void:
 	_model.rotation.y += delta * 2.7
 	var bounce: float = absf(sin(_age * 8.0)) * maxf(0.0, 1.0 - _age * 1.5) * 0.5
 	_model.position.y = 0.34 + sin(_age * 3.5 + _phase) * 0.07 + bounce
+	if game.reduced_motion():
+		_model.position.y = 0.34
+		_model.rotation.y = 0.0
 	var hero: Node3D = game.call("get_hero") as Node3D
 	if not is_instance_valid(hero):
 		return

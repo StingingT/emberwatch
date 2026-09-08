@@ -5,7 +5,7 @@ config_version=5
 config/name="Emberwatch"
 run/main_scene="res://game/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/description="A portrait action tower-defense game. Defend the last light."
+config/description="Six original portrait tower-defense missions. Defend the last light."
 
 [display]
 window/size/viewport_width=720

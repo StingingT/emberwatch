@@ -1,5 +1,7 @@
 # First playable acceptance
 
+Historical record: the 182-check evidence below belongs to initial checkpoint `0a59cd5`; current campaign/runtime evidence is recorded in [campaign_validation.md](campaign_validation.md), and later source is not claimed identical to that first-playable extraction.
+
 Scope: the user's instruction to continue until a playable game, using the supplied reference's initial vertical slice. The larger complete-phone-game roadmap remains separate. The user explicitly directed desktop development to continue while iPhone validation happens later or in parallel. This audit does not turn pending Mac/iPhone tests into completed device claims.
 
 Final validation status: **first playable accepted on Windows, 2026-09-08**. A fresh source extraction passed import, all **182 checks** (68 economy, 44 combat, 57 UI, 13 feedback), the full six-wave active/unattended scenarios and both actual-renderer capture tools. The reviewed gallery confirms all twelve building models; live captures include Smith purchase feedback. Documentation was finalized after this verification; executable source remains identical to the verified extraction.

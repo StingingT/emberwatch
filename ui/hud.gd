@@ -12,6 +12,10 @@ signal upgrade_requested
 signal smith_requested(id: String)
 signal ability_requested
 signal sound_toggled(enabled: bool)
+signal campaign_requested
+signal mission_requested(id: String)
+signal next_requested
+signal setting_changed(key: String, value: bool)
 
 const TOUCH_BUTTON = preload("res://ui/touch_button.gd")
 const TOUCH_STICK = preload("res://ui/touch_stick.gd")
@@ -54,6 +58,9 @@ var _movement_hint: Label
 var _ability_hint: Label
 var _toast_panel: Panel
 var _toast_label: Label
+var _hint_panel: Panel
+var _hint_label: Label
+var _hint_text: String = ""
 var _toast_remaining: float = 0.0
 var _option_buttons: Array[Button] = []
 var _smith_buttons: Array[Button] = []
@@ -64,6 +71,18 @@ var _context_selection_id: String = ""
 var _state: Dictionary = {}
 var _sound_enabled: bool = true
 var _playing_ui: bool = false
+var _overlay_mode: String = "title"
+var _auxiliary_return: String = "title"
+var _campaign_missions: Array[Dictionary] = []
+var _mission_buttons: Dictionary = {}
+var _setting_buttons: Dictionary = {}
+var _preferences: Dictionary = {
+	"sound": true, "reduced_motion": false,
+	"large_controls": false, "tutorial_hints": true,
+}
+var _save_notice_text: String = ""
+var _save_notice_panel: Panel
+var _save_notice_label: Label
 
 
 func _ready() -> void:
@@ -77,6 +96,12 @@ func _ready() -> void:
 	_overlay = _control(_root)
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_save_notice_panel = _panel(_root, Color("382d20"))
+	_save_notice_label = _label(_save_notice_panel, "", 18, Color("ffe0a1"))
+	_save_notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_save_notice_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_save_notice_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_save_notice_panel.hide()
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 	show_title()
@@ -85,8 +110,9 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _toast_remaining > 0.0:
 		_toast_remaining = maxf(0.0, _toast_remaining - delta)
-		_toast_panel.modulate.a = minf(1.0, _toast_remaining / 0.35)
+		_toast_panel.modulate.a = 1.0 if bool(_preferences["reduced_motion"]) else minf(1.0, _toast_remaining / 0.35)
 		_toast_panel.visible = _playing_ui and _toast_remaining > 0.0
+	_sync_hint_visibility()
 
 
 func _notification(what: int) -> void:
@@ -116,20 +142,30 @@ func reset_input() -> void:
 
 func show_title() -> void:
 	_show_overlay("title")
+	_overlay_card_size = Vector2(596, 950)
 	var crest: Control = CREST.new()
 	_overlay_card.add_child(crest)
-	_rect(crest, 226, 18, 144, 144)
-	_center_label(_overlay_card, "THE LAST LIGHT NEEDS YOU", 18, 175, 30, GOLD)
-	_center_label(_overlay_card, "EMBERWATCH", 61, 219, 76, CREAM)
-	_center_label(_overlay_card, "Defend the last light", 27, 301, 44, MUTED)
-	_rule(_overlay_card, 213, 366, 170)
-	_center_label(_overlay_card, "A bow. A handful of coins.\nA kingdom worth defending.", 25, 398, 80, CREAM)
-	_instruction(510, "01", "MOVE & FIRE", "Drag the stick. Your archer aims for you.")
-	_instruction(597, "02", "COLLECT & BUILD", "Gather gold. Buy defenses at nearby plots.")
+	_rect(crest, 230, 10, 136, 136)
+	_center_label(_overlay_card, "THE LAST LIGHT NEEDS YOU", 18, 152, 30, GOLD)
+	_center_label(_overlay_card, "EMBERWATCH", 61, 193, 76, CREAM)
+	_center_label(_overlay_card, "Defend the last light", 27, 273, 44, MUTED)
+	_rule(_overlay_card, 213, 330, 170)
+	_center_label(_overlay_card, "A bow. A handful of coins.\nA kingdom worth defending.", 25, 358, 80, CREAM)
+	_instruction(467, "01", "MOVE & FIRE", "Drag the stick. Your archer aims for you.")
+	_instruction(546, "02", "COLLECT & BUILD", "Gather gold. Buy defenses at nearby plots.")
 	var play := _button(_overlay_card, "DEFEND THE KEEP", 28, true)
-	_rect(play, 46, 705, 504, 78)
+	_rect(play, 46, 643, 504, 78)
 	play.pressed.connect(func() -> void: play_requested.emit())
-	_center_label(_overlay_card, "Portrait play  /  WASD + Space on desktop", 17, 799, 28, MUTED)
+	var campaign := _button(_overlay_card, "Campaign", 25)
+	_rect(campaign, 46, 737, 504, 64)
+	campaign.pressed.connect(func() -> void: campaign_requested.emit())
+	var settings := _button(_overlay_card, "Settings", 23)
+	_rect(settings, 46, 817, 245, 64)
+	settings.pressed.connect(show_settings)
+	var help := _button(_overlay_card, "How to play", 23)
+	_rect(help, 305, 817, 245, 64)
+	help.pressed.connect(show_how_to_play)
+	_center_label(_overlay_card, "Portrait play  /  WASD + Space on desktop", 17, 901, 28, MUTED)
 	_layout_overlay()
 
 
@@ -140,6 +176,8 @@ func show_game() -> void:
 	_overlay.hide()
 	_toast_panel.visible = _toast_remaining > 0.0
 	show_context(_context)
+	_sync_hint_visibility()
+	_layout_overlay()
 
 
 func show_pause() -> void:
@@ -154,13 +192,9 @@ func show_pause() -> void:
 	var retry := _button(_overlay_card, "Restart this defense", 25)
 	_rect(retry, 46, 349, 504, 68)
 	retry.pressed.connect(func() -> void: restart_requested.emit())
-	var sound := _button(_overlay_card, "Sound: ON" if _sound_enabled else "Sound: OFF", 25)
-	_rect(sound, 46, 435, 504, 68)
-	sound.pressed.connect(func() -> void:
-		_sound_enabled = not _sound_enabled
-		sound.text = "Sound: ON" if _sound_enabled else "Sound: OFF"
-		sound_toggled.emit(_sound_enabled)
-	)
+	var settings := _button(_overlay_card, "Settings", 25)
+	_rect(settings, 46, 435, 504, 68)
+	settings.pressed.connect(show_settings)
 	var menu := _button(_overlay_card, "Back to title", 23)
 	_rect(menu, 46, 532, 504, 68)
 	menu.pressed.connect(func() -> void: menu_requested.emit())
@@ -169,24 +203,193 @@ func show_pause() -> void:
 
 func show_result(won: bool, summary: Dictionary) -> void:
 	_show_overlay("result")
-	_overlay_card_size = Vector2(596, 764)
+	if bool(summary.get("save_failed", false)) and _save_notice_text.is_empty():
+		set_save_notice("Progress could not be saved. Keep the game open and try again.")
+	var has_next: bool = won and bool(summary.get("next_available", false))
+	var campaign_complete: bool = won and bool(summary.get("campaign_complete", false))
+	_overlay_card_size = Vector2(596, 844 if has_next else 764)
 	var crest: Control = CREST.new()
 	_overlay_card.add_child(crest)
 	_rect(crest, 243, 25, 110, 110)
-	_center_label(_overlay_card, "THE LIGHT ENDURES" if won else "THE WATCH WILL RISE AGAIN", 18, 154, 28, GOLD)
-	_center_label(_overlay_card, "Keep defended" if won else "Keep overrun", 45, 201, 65, CREAM)
-	_center_label(_overlay_card, "A small kingdom. A mighty stand." if won else "Rebuild. Reposition. Return stronger.", 22, 279, 54, MUTED)
+	_center_label(_overlay_card, "THE KINGDOM KEEPS ITS LIGHT" if campaign_complete else ("THE LIGHT ENDURES" if won else "THE WATCH WILL RISE AGAIN"), 18, 154, 28, GOLD)
+	_center_label(_overlay_card, "Campaign defended" if campaign_complete else ("Keep defended" if won else "Keep overrun"), 45, 201, 65, CREAM)
+	var subtitle: String = str(summary.get("mission_name", ""))
+	if subtitle.is_empty():
+		subtitle = "A small kingdom. A mighty stand." if won else "Rebuild. Reposition. Return stronger."
+	_center_label(_overlay_card, subtitle, 22, 279, 35 if summary.has("stars") else 54, MUTED)
+	if summary.has("stars"):
+		_center_label(_overlay_card, _stars(int(summary["stars"])), 28, 320, 33, GOLD)
 	_rule(_overlay_card, 55, 359, 486)
 	_result_stat(390, "Waves", "%d / %d" % [int(summary.get("wave", 0)), int(summary.get("total_waves", 0))])
 	_result_stat(445, "Goblins defeated", str(summary.get("kills", 0)))
 	_result_stat(500, "Gold collected", str(summary.get("coins", 0)))
-	var retry := _button(_overlay_card, "DEFEND AGAIN" if won else "TRY AGAIN", 28, true)
-	_rect(retry, 46, 585, 504, 76)
+	if has_next:
+		var next := _button(_overlay_card, "NEXT MISSION", 28, true)
+		_rect(next, 46, 585, 504, 76)
+		next.pressed.connect(func() -> void: next_requested.emit())
+	var retry := _button(_overlay_card, "DEFEND AGAIN" if won else "TRY AGAIN", 24 if has_next else 28, not has_next)
+	_rect(retry, 46, 680 if has_next else 585, 504, 60 if has_next else 76)
 	retry.pressed.connect(func() -> void: restart_requested.emit())
 	var menu := _button(_overlay_card, "Back to title", 23)
-	_rect(menu, 46, 680, 504, 56)
+	_rect(menu, 46, 762 if has_next else 680, 504, 56)
 	menu.pressed.connect(func() -> void: menu_requested.emit())
 	_layout_overlay()
+
+
+func show_campaign(missions: Array[Dictionary]) -> void:
+	_campaign_missions.assign(missions)
+	_mission_buttons.clear()
+	_show_overlay("campaign")
+	var rows_height: float = missions.size() * 122.0
+	_overlay_card_size = Vector2(596, 236 + rows_height)
+	_center_label(_overlay_card, "THE EMBERWATCH CAMPAIGN", 18, 24, 30, GOLD)
+	_center_label(_overlay_card, "Choose your defense", 39, 60, 58, CREAM)
+	for index in range(missions.size()):
+		var mission: Dictionary = missions[index]
+		var id: String = str(mission.get("id", ""))
+		var unlocked: bool = bool(mission.get("unlocked", false))
+		var card := _button(_overlay_card, "", 23)
+		_rect(card, 32, 136 + index * 122, 532, 110)
+		card.disabled = not unlocked
+		card.pressed.connect(_on_mission_pressed.bind(id))
+		_mission_buttons[id] = card
+		var number := _label(card, "%02d" % (index + 1), 25, GOLD if unlocked else MUTED)
+		_rect(number, 16, 12, 48, 37)
+		var title := _label(card, str(mission.get("name", "Mission %d" % (index + 1))), 24, CREAM if unlocked else MUTED)
+		title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		title.clip_text = true
+		_rect(title, 73, 11, 307, 35)
+		var stars := _label(card, _stars(int(mission.get("stars", 0))) if unlocked else "LOCKED", 19, GOLD if unlocked else MUTED)
+		_rect(stars, 394, 15, 121, 30)
+		stars.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		var briefing := _label(card, str(mission.get("briefing", "")), 18, MUTED, true)
+		briefing.max_lines_visible = 2
+		_rect(briefing, 73, 50, 439, 49)
+	var back := _button(_overlay_card, "Back to title", 24)
+	_rect(back, 46, 149 + rows_height, 504, 64)
+	back.pressed.connect(func() -> void: menu_requested.emit())
+	_layout_overlay()
+
+
+func set_preferences(settings: Dictionary) -> void:
+	var previous_large: bool = bool(_preferences["large_controls"])
+	for key: String in _preferences:
+		if settings.has(key):
+			_preferences[key] = bool(settings[key])
+	_sound_enabled = bool(_preferences["sound"])
+	for key: String in _setting_buttons:
+		var button: Button = _setting_buttons[key]
+		if is_instance_valid(button):
+			button.text = "%s: %s" % [_setting_title(key), "ON" if bool(_preferences[key]) else "OFF"]
+	if previous_large != bool(_preferences["large_controls"]) and is_instance_valid(_root):
+		_layout()
+	_sync_hint_visibility()
+
+
+func show_hint(text: String) -> void:
+	_hint_text = text
+	if is_instance_valid(_hint_label):
+		_hint_label.text = text
+	_sync_hint_visibility()
+
+
+func set_save_notice(message: String) -> void:
+	_save_notice_text = message
+	if is_instance_valid(_save_notice_label):
+		_save_notice_label.text = message
+	_layout_overlay()
+
+
+func show_settings() -> void:
+	if _overlay_mode != "settings":
+		_auxiliary_return = _overlay_mode
+	_show_overlay("settings")
+	_overlay_card_size = Vector2(596, 826)
+	_setting_buttons.clear()
+	_center_label(_overlay_card, "SETTINGS", 18, 28, 30, GOLD)
+	_center_label(_overlay_card, "Make it yours", 43, 71, 60, CREAM)
+	_center_label(_overlay_card, "Your choices are saved automatically.", 20, 136, 34, MUTED)
+	var descriptions: Dictionary = {
+		"sound": "Combat sounds and game audio.",
+		"reduced_motion": "Fewer motion effects and HUD fades.",
+		"large_controls": "Larger movement, Volley and purchase targets.",
+		"tutorial_hints": "Show useful guidance during your first defenses.",
+	}
+	var keys: Array[String] = ["sound", "reduced_motion", "large_controls", "tutorial_hints"]
+	for index in range(keys.size()):
+		var key: String = keys[index]
+		var button := _button(_overlay_card, "%s: %s" % [_setting_title(key), "ON" if bool(_preferences[key]) else "OFF"], 25)
+		_rect(button, 46, 193 + index * 116, 504, 66)
+		button.pressed.connect(_toggle_setting.bind(key))
+		_setting_buttons[key] = button
+		var description := _label(_overlay_card, str(descriptions[key]), 18, MUTED, true)
+		_rect(description, 49, 265 + index * 116, 498, 33)
+	var back := _button(_overlay_card, "Back", 25, true)
+	_rect(back, 46, 727, 504, 68)
+	back.pressed.connect(_return_from_auxiliary)
+	_layout_overlay()
+
+
+func show_how_to_play() -> void:
+	if _overlay_mode != "help":
+		_auxiliary_return = _overlay_mode
+	_show_overlay("help")
+	_overlay_card_size = Vector2(596, 928)
+	_center_label(_overlay_card, "YOUR FIRST WATCH", 18, 28, 30, GOLD)
+	_center_label(_overlay_card, "How to play", 43, 70, 60, CREAM)
+	_guide_step(146, "01", "Move and shoot", "Drag the stick to move. Your archer automatically fires at nearby enemies.")
+	_guide_step(253, "02", "Collect the gold", "Walk near dropped gold to collect it. Mine income also waits on the ground.")
+	_guide_step(360, "03", "Build your defenses", "Stand near a plot, then tap a structure or upgrade. The battle stays live.")
+	_guide_step(467, "04", "Strengthen your archer", "Your hero's finishing blows earn XP. Tower kills still drop gold.")
+	_guide_step(574, "05", "Unleash Volley", "Reach hero level 2, then tap Volley near enemies. It recharges after use.")
+	_guide_step(681, "06", "Protect the Keep", "Stop the waves before they destroy the Keep. Win missions to advance the campaign.")
+	var back := _button(_overlay_card, "Back", 25, true)
+	_rect(back, 46, 811, 504, 70)
+	back.pressed.connect(_return_from_auxiliary)
+	_center_label(_overlay_card, "Desktop: WASD / arrows · E to build · Space for Volley", 16, 889, 25, MUTED)
+	_layout_overlay()
+
+
+func _on_mission_pressed(id: String) -> void:
+	mission_requested.emit(id)
+
+
+func _toggle_setting(key: String) -> void:
+	var value: bool = not bool(_preferences.get(key, false))
+	set_preferences({key: value})
+	setting_changed.emit(key, value)
+
+
+func _setting_title(key: String) -> String:
+	return str({"sound": "Sound", "reduced_motion": "Reduced motion", "large_controls": "Larger controls", "tutorial_hints": "Tutorial hints"}.get(key, key.capitalize()))
+
+
+func _return_from_auxiliary() -> void:
+	match _auxiliary_return:
+		"pause": show_pause()
+		"campaign": show_campaign(_campaign_missions)
+		_: show_title()
+
+
+func _stars(count: int) -> String:
+	var result: String = ""
+	for index in range(3):
+		result += "★" if index < clampi(count, 0, 3) else "☆"
+	return result
+
+
+func _guide_step(y: float, number: String, title: String, body: String) -> void:
+	var badge := _label(_overlay_card, number, 24, GOLD)
+	_rect(badge, 43, y, 48, 36)
+	var heading := _label(_overlay_card, title, 24, CREAM)
+	_rect(heading, 111, y - 2, 439, 37)
+	var description := _label(_overlay_card, body, 20, MUTED, true)
+	_rect(description, 111, y + 37, 439, 62)
+
+
+func _sync_hint_visibility() -> void:
+	if is_instance_valid(_hint_panel):
+		_hint_panel.visible = _playing_ui and bool(_preferences["tutorial_hints"]) and not _hint_text.is_empty() and _toast_remaining <= 0.0
 
 
 func update_state(state: Dictionary) -> void:
@@ -341,6 +544,12 @@ func _build_game_ui() -> void:
 	_upgrade_button = _button(_context_panel, "UPGRADE", 23, true)
 	_upgrade_button.pressed.connect(func() -> void: upgrade_requested.emit())
 	_context_panel.hide()
+	_hint_panel = _panel(_game, Color(0.07, 0.19, 0.14, 0.94))
+	_hint_label = _label(_hint_panel, "", 22, CREAM)
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint_panel.hide()
 	_toast_panel = _panel(_game, Color(0.04, 0.11, 0.085, 0.94))
 	_toast_label = _label(_toast_panel, "", 23, GOLD)
 	_toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -374,8 +583,9 @@ func _layout() -> void:
 	var left: float = _safe.position.x
 	var top: float = _safe.position.y
 	var bottom: float = _safe.end.y
+	var large_controls: bool = bool(_preferences["large_controls"])
 	var keep_width: float = w * 0.49
-	var pause_width: float = 70.0
+	var pause_width: float = 84.0 if large_controls else 70.0
 	var coin_width: float = w - keep_width - pause_width - 20
 	_rect(_keep_panel, left, top, keep_width, 84)
 	_rect(_keep_label, 16, 12, keep_width - 28, 30)
@@ -393,21 +603,25 @@ func _layout() -> void:
 	_rect(_wave_bar, 20, 64, wave_width - 40, 6)
 	_rect(_threat, left, top + 247, w, 32)
 	var compact: bool = h < 850
-	var stick_size: float = 170 if compact else 192
+	var stick_size: float = (188 if compact else 218) if large_controls else (170 if compact else 192)
 	_rect(_stick, left + 4, bottom - stick_size - 31, stick_size, stick_size)
 	_rect(_movement_hint, left, bottom - 30, stick_size + 8, 25)
-	var ability_size: float = 132 if compact else 150
+	var ability_size: float = (154 if compact else 176) if large_controls else (132 if compact else 150)
 	_rect(_ability_button, _safe.end.x - ability_size - 10, bottom - ability_size - 44, ability_size, ability_size)
 	_rect(_ability_hint, _safe.end.x - 198, bottom - 30, 198, 25)
 	var context_width: float = minf(w, 660)
-	var context_height: float = 174
+	var context_height: float = 196 if large_controls else 174
 	_rect(_context_panel, left + (w - context_width) * 0.5, bottom - stick_size - context_height - 46, context_width, context_height)
 	_rect(_context_title, 18, 11, context_width - 36, 34)
 	_rect(_context_subtitle, 18, 47, context_width - 36, 29)
 	_context_subtitle.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var toast_width: float = minf(w - 24, 600)
+	_rect(_hint_panel, left + (w - toast_width) * 0.5, top + 289, toast_width, 66)
+	_rect(_hint_label, 14, 7, toast_width - 28, 52)
 	_rect(_toast_panel, left + (w - toast_width) * 0.5, top + 289, toast_width, 66)
 	_rect(_toast_label, 14, 7, toast_width - 28, 52)
+	_rect(_save_notice_panel, left + 12, bottom - 58, w - 24, 54)
+	_rect(_save_notice_label, 12, 3, w - 48, 48)
 	_layout_context()
 	_layout_overlay()
 
@@ -418,12 +632,13 @@ func _layout_context() -> void:
 	var count: int = _option_ids.size()
 	var width: float = _context_panel.size.x - 36
 	var has_upgrade: bool = _upgrade_button.visible
+	var purchase_height: float = 89.0 if bool(_preferences["large_controls"]) else 69.0
 	if count > 0:
 		var each: float = (width - (count - 1) * 10) / count
 		for index in range(count):
-			_rect(_option_buttons[index], 18 + index * (each + 10), 88, each, 69)
+			_rect(_option_buttons[index], 18 + index * (each + 10), 88, each, purchase_height)
 	if has_upgrade:
-		_rect(_upgrade_button, 18, 88, width, 69)
+		_rect(_upgrade_button, 18, 88, width, purchase_height)
 	# Smith purchases remain next to their world building, within the clear play area.
 	var smith_count: int = _smith_ids.size()
 	if smith_count > 0:
@@ -441,7 +656,10 @@ func _layout_context() -> void:
 
 
 func _show_overlay(_mode: String) -> void:
+	_overlay_mode = _mode
 	reset_input()
+	_setting_buttons.clear()
+	_mission_buttons.clear()
 	_playing_ui = false
 	_game.hide()
 	_overlay.show()
@@ -460,12 +678,16 @@ func _show_overlay(_mode: String) -> void:
 
 
 func _layout_overlay() -> void:
+	var notice_visible: bool = not _playing_ui and not _save_notice_text.is_empty()
+	if is_instance_valid(_save_notice_panel):
+		_save_notice_panel.visible = notice_visible
 	if not is_instance_valid(_overlay_card):
 		return
-	var fit: float = minf(1.0, minf((_safe.size.x - 12) / _overlay_card_size.x, (_safe.size.y - 20) / _overlay_card_size.y))
+	var bottom_reserve: float = 82.0 if notice_visible else 20.0
+	var fit: float = minf(1.0, minf((_safe.size.x - 12) / _overlay_card_size.x, (_safe.size.y - bottom_reserve) / _overlay_card_size.y))
 	_overlay_card.size = _overlay_card_size
 	_overlay_card.scale = Vector2.ONE * fit
-	_overlay_card.position = _safe.get_center() - _overlay_card_size * fit * 0.5
+	_overlay_card.position = _safe.get_center() - _overlay_card_size * fit * 0.5 - Vector2(0, 31 if notice_visible else 0)
 
 
 func _on_option_pressed(index: int) -> void:
@@ -544,8 +766,10 @@ func _panel(parent: Node, color: Color = PANEL) -> Panel:
 	return panel
 
 
-func _label(parent: Node, text: String, font_size: int, color: Color) -> Label:
+func _label(parent: Node, text: String, font_size: int, color: Color, wrap: bool = false) -> Label:
 	var label := Label.new()
+	if wrap:
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.text = text
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.add_theme_font_size_override("font_size", font_size)
@@ -606,4 +830,9 @@ func _style(color: Color, border: Color, radius: int, border_width: int = 1) -> 
 
 func _rect(control: Control, x: float, y: float, width: float, height: float) -> void:
 	control.position = Vector2(x, y)
-	control.size = Vector2(maxf(1, width), maxf(1, height))
+	var requested_size := Vector2(maxf(1, width), maxf(1, height))
+	control.size = requested_size
+	if control is Label and control.autowrap_mode != TextServer.AUTOWRAP_OFF:
+		# Wrapping was measured at the old width; refresh before setting height again.
+		control.get_minimum_size()
+		control.size = requested_size

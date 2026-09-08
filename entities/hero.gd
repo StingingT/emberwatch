@@ -62,6 +62,9 @@ func _physics_process(delta: float) -> void:
 	if is_instance_valid(_model):
 		_model.position.y = absf(sin(_walk_phase)) * 0.065 * minf(actual_speed, 1.0)
 		_model.rotation.z = sin(_walk_phase * 0.5) * 0.035 * minf(actual_speed, 1.0) + _recoil * 0.10
+		if game.reduced_motion():
+			_model.position.y = 0.0
+			_model.rotation.z = 0.0
 	if _shot_remaining <= 0.0:
 		var target: Node3D = game.call("nearest_enemy", global_position, attack_range) as Node3D
 		if _valid_target(target):
@@ -160,3 +163,5 @@ func _update_level_flash(delta: float) -> void:
 	_level_flash = maxf(0.0, _level_flash - delta)
 	_level_ring.visible = _level_flash > 0.0
 	_level_ring.scale = Vector3.ONE * (1.0 + (1.0 - _level_flash) * 2.0)
+	if game.reduced_motion():
+		_level_ring.scale = Vector3.ONE

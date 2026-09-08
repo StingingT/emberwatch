@@ -81,9 +81,10 @@ func _rebuild_model() -> void:
 		model.queue_free()
 	model = Visuals.building(kind, tier)
 	add_child(model)
-	model.scale = Vector3(0.75, 0.05, 0.75)
-	var tween: Tween = create_tween()
-	tween.tween_property(model, "scale", Vector3.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if not game.reduced_motion():
+		model.scale = Vector3(0.75, 0.05, 0.75)
+		var tween: Tween = create_tween()
+		tween.tween_property(model, "scale", Vector3.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	if not is_instance_valid(_health_bar):
 		_health_back = _bar(Color("293d36"))
 		_health_bar = _bar(Color("f2b85f"))

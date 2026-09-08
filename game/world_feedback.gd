@@ -18,7 +18,7 @@ func setup(owner_game: Node3D, view: Camera3D) -> void:
 	_font = ThemeDB.fallback_font
 
 func hit(at: Vector3, lethal: bool) -> void:
-	if not game.is_playing():
+	if not game.is_playing() or game.reduced_motion():
 		return
 	if hits.size() >= MAX_HITS:
 		hits.pop_front()
@@ -85,7 +85,8 @@ func _draw() -> void:
 		var at: Vector3 = entry["at"] + Vector3(0, 1.7, 0)
 		if camera.is_position_behind(at):
 			continue
-		var center: Vector2 = camera.unproject_position(at) - Vector2(0, float(entry["age"]) * 42.0)
+		var rise: float = 0.0 if game.reduced_motion() else float(entry["age"]) * 42.0
+		var center: Vector2 = camera.unproject_position(at) - Vector2(0, rise)
 		if not view_rect.has_point(center):
 			continue
 		var label: String = "+%d gold" % int(entry["amount"])
