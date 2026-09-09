@@ -1,6 +1,6 @@
 # Recovery checkpoint: scope and evidence
 
-Recorded 2026-09-09 on Windows with **Godot 4.7.stable.official.5b4e0cb0f**. Interrupted-battle recovery is implemented and locally validated. The complete working-source `tools/validate.ps1 -Capture` run and a separate fresh-source headless run both passed with exit 0. Compatibility renderer captures were reviewed on an NVIDIA RTX 3060. The iOS and Android export presets are **0.3.0 / build 3**; this is source metadata, not a signed or tested phone release.
+Recorded 2026-09-09 on Windows with **Godot 4.7.stable.official.5b4e0cb0f**. Interrupted-battle recovery is implemented and locally validated. The complete working-source `tools/validate.ps1 -Capture` run and a separate fresh-source headless run both passed with exit 0. The Android debug APK export passed and its v2/v3 signature verified; no physical device is connected. Compatibility renderer captures were reviewed on an NVIDIA RTX 3060. The iOS and Android export presets are **0.3.0 / build 3**; release signing and phone validation remain pending.
 
 The first-playable checkpoint `0a59cd5` and campaign checkpoint `25793af` are historical. Their records remain in [first_playable_acceptance.md](first_playable_acceptance.md) and [campaign_validation.md](campaign_validation.md). This document describes current recovery evidence. The full-game goal remains active.
 
@@ -66,4 +66,4 @@ That extraction passed Godot import, all eleven baseline/recovery suites (725 as
 
 Human playtesting of clarity, campaign pacing, economy, difficulty and enjoyment; further presentation/audio polish; and release preparation remain active. These automated checks do not complete the full-game goal.
 
-Mac import, iOS signing/install, Android APK signing/install, physical-device multi-touch, safe areas, actual operating-system interruption/relaunch behavior, and sustained frame time/memory/temperature still need native validation. Desktop notification tests do not prove iPhone or Android lifecycle delivery. Native checks can happen later or in parallel and do not block compatible desktop development. GitHub publication, TestFlight/Play Store/App Store release and exact-commercial fidelity are not claimed.
+Mac import, iOS signing/install, Android physical-device install and release signing, physical-device multi-touch, safe areas, actual operating-system interruption/relaunch behavior, and sustained frame time/memory/temperature still need native validation. Desktop notification tests do not prove iPhone or Android lifecycle delivery. Native checks can happen later or in parallel and do not block compatible desktop development. GitHub publication, TestFlight/Play Store/App Store release and exact-commercial fidelity are not claimed.

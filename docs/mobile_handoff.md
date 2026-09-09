@@ -4,7 +4,7 @@ Emberwatch uses one Godot project for Windows, iOS and Android. The game remains
 
 ## Current status
 
-The source project and desktop validation are ready for both mobile export paths. Windows has no Android SDK, OpenJDK 17 configuration or `adb` available in the current environment, so no Android APK or device result is claimed yet. The iOS preset is also a signing template and has not been installed on a physical iPhone.
+The source project and desktop validation are ready for both mobile export paths. Windows is now configured with OpenJDK 17, the Android SDK, platform tools and the Godot 4.7 export templates. A debug APK exported successfully from the Android preset on 2026-09-09; no physical Android device is currently connected, so touch, lifecycle, safe-area and performance results remain pending. The iOS preset is a signing template and has not been installed on a physical iPhone.
 
 ## Android setup
 
@@ -20,7 +20,7 @@ godot --path . --export-debug "Android" builds/android/Emberwatch-debug.apk
 adb install -r builds/android/Emberwatch-debug.apk
 ```
 
-Use a release export and a private keystore for distribution. Never commit the keystore, passwords or generated APKs.
+Use a release export and a private keystore for distribution. Never commit the keystore, passwords or generated APKs. The current local debug APK is `builds/android/Emberwatch-debug.apk` (28,405,199 bytes; SHA-256 `6955EAF49A5FDBB9B19C6BA54BE4D1204048C35282436226AAA0B3E37426493B`).
 
 ## Android acceptance
 
@@ -31,4 +31,4 @@ Use a release export and a private keystore for distribution. Never commit the k
 - Play all six missions, including Sunscar's support choice and Moonfen's mine limit. Check victory, loss, retry, unlocks, saved settings and the final ending.
 - Measure busy-wave frame time, memory, battery draw and device temperature on at least one mid-range Android phone and one newer phone. Record actual Android version, device, Godot version and renderer.
 
-The existing Windows tests prove game rules and controlled lifecycle behavior; they do not prove Android GPU performance, APK signing, OEM safe areas or physical touch feel. Record those results in [mac_iphone_handoff.md](mac_iphone_handoff.md) and [recovery_validation.md](recovery_validation.md) when a device run is available.
+The existing Windows tests prove game rules and controlled lifecycle behavior; they do not prove Android GPU performance, release signing, OEM safe areas or physical touch feel. Record those results in [mac_iphone_handoff.md](mac_iphone_handoff.md) and [recovery_validation.md](recovery_validation.md) when a device run is available.

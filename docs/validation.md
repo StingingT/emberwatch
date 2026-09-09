@@ -1,6 +1,6 @@
 # Current validation: recovery checkpoint
 
-Date: 2026-09-09. Engine: **Godot 4.7.stable.official.5b4e0cb0f**, Windows. The six-mission campaign and interrupted-battle recovery are implemented. The complete working-source `tools/validate.ps1 -Capture` run and a fresh-source headless run passed with exit 0. Compatibility rendering was reviewed on an NVIDIA RTX 3060. This establishes Windows/source behavior, not a signed iPhone build or native-device performance.
+Date: 2026-09-09. Engine: **Godot 4.7.stable.official.5b4e0cb0f**, Windows. The six-mission campaign and interrupted-battle recovery are implemented. The complete working-source `tools/validate.ps1 -Capture` run and a fresh-source headless run passed with exit 0. The Android debug APK export also passed and its v2/v3 signature verified. Compatibility rendering was reviewed on an NVIDIA RTX 3060. This establishes Windows/source behavior, not a signed iPhone build or physical-device performance.
 
 The current detailed evidence is [recovery_validation.md](recovery_validation.md). The earlier first-playable checkpoint **`0a59cd5`** and campaign checkpoint **`25793af`** are historical; their evidence remains in [first_playable_acceptance.md](first_playable_acceptance.md) and [campaign_validation.md](campaign_validation.md). Full-game development remains active.
 
@@ -43,4 +43,4 @@ The implemented recovery contract is [run_recovery_plan.md](run_recovery_plan.md
 
 Human feedback on clarity, campaign pacing, economy, difficulty and enjoyment; further presentation/audio polish and release preparation remain. Passing this checkpoint does not finish the full-game goal.
 
-Mac import, signed iOS export/install, Android APK export/install, real iPhone 12-16 and Android multi-touch/safe areas, operating-system interruption/relaunch behavior, sustained frame time, memory and heat require native testing. These later or parallel checks do not block compatible desktop development. The iOS and Android presets are **0.3.0/build 3**, with placeholder signing identities. No native-phone validation, GitHub publication, TestFlight/Play Store/App Store release or exact-commercial fidelity is claimed.
+Mac import, signed iOS export/install, Android physical-device install, Android release signing, real iPhone 12-16 and Android multi-touch/safe areas, operating-system interruption/relaunch behavior, sustained frame time, memory and heat require native testing. These later or parallel checks do not block compatible desktop development. The iOS and Android presets are **0.3.0/build 3**, with placeholder signing identities. No native-phone validation, GitHub publication, TestFlight/Play Store/App Store release or exact-commercial fidelity is claimed.

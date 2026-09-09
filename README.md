@@ -25,7 +25,7 @@ Mission cards explain the strategic variation. Sunscar has one support plot, so 
 
 Clone/copy the entire source project, install the same **Godot 4.7 stable**, import `project.godot`, and press F5. Alternatively run `bash tools/run_macos.sh`. No Windows-only plugins or external art packages are required.
 
-For an actual iPhone build, follow [docs/mac_iphone_handoff.md](docs/mac_iphone_handoff.md). For Android setup and the device checklist, see [docs/mobile_handoff.md](docs/mobile_handoff.md). iOS and Android export presets are source templates with placeholder signing values. Windows gameplay is validated; native iPhone and Android builds and device performance have not yet been verified.
+For an actual iPhone build, follow [docs/mac_iphone_handoff.md](docs/mac_iphone_handoff.md). For Android setup and the device checklist, see [docs/mobile_handoff.md](docs/mobile_handoff.md). The Android debug APK export is verified locally; iOS export, release signing and physical iPhone/Android device performance have not yet been verified.
 
 To make a portable source archive, run `powershell -NoProfile -ExecutionPolicy Bypass -File tools/package_source.ps1`. It creates `builds/emberwatch-source.zip` without generated caches, logs or private signing files. The recipient still needs Godot; this archive is source, not an installed iPhone app.
 
@@ -85,7 +85,7 @@ Check success markers and error output as well as exit codes: Godot may return e
 
 The supplied reference is preserved in `docs/kingshot_design_reference.md`. Current decisions and boundaries are in `docs/architecture.md`; the larger roadmap remains in `PROJECT_PLAN.md`.
 
-Current evidence is in [docs/validation.md](docs/validation.md) and [docs/recovery_validation.md](docs/recovery_validation.md). The recovery contract is in [docs/run_recovery_plan.md](docs/run_recovery_plan.md); campaign scope and remaining full-game work are in [docs/campaign_plan.md](docs/campaign_plan.md). Tests and rendered fixtures use memory-only or isolated profile/run stores and never overwrite player progress. The iOS and Android handoff presets are version **0.3.0**, build **3**; signing and native validation remain pending. See [docs/mobile_handoff.md](docs/mobile_handoff.md) for Android setup.
+Current evidence is in [docs/validation.md](docs/validation.md) and [docs/recovery_validation.md](docs/recovery_validation.md). The recovery contract is in [docs/run_recovery_plan.md](docs/run_recovery_plan.md); campaign scope and remaining full-game work are in [docs/campaign_plan.md](docs/campaign_plan.md). Tests and rendered fixtures use memory-only or isolated profile/run stores and never overwrite player progress. The iOS and Android handoff presets are version **0.3.0**, build **3**; Android debug export is verified locally, while release signing and physical-device validation remain pending. See [docs/mobile_handoff.md](docs/mobile_handoff.md) for Android setup.
 
 Building tier caps and Smith price scaling live in `game/game_data.gd`, alongside the other balance values. Routine balance changes do not require editing purchase logic.
 
