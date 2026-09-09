@@ -44,6 +44,30 @@ func setup(owner_game: Node, stats: Dictionary) -> void:
 	add_child(_level_ring)
 
 
+func capture_state() -> Dictionary:
+	return {"position": [position.x, position.y, position.z], "tier": tier, "xp": xp,
+		"ability_cooldown": ability_cooldown, "shot_remaining": _shot_remaining,
+		"facing": _model.rotation.y}
+
+
+## Called after setup with a snapshot validated by the run controller.
+func restore_state(saved: Dictionary) -> void:
+	var at: Array = saved["position"]
+	position = Vector3(float(at[0]), float(at[1]), float(at[2]))
+	tier = int(saved["tier"])
+	xp = int(saved["xp"])
+	_refresh_stats()
+	ability_cooldown = float(saved["ability_cooldown"])
+	_shot_remaining = float(saved["shot_remaining"])
+	move_input = Vector2.ZERO
+	_walk_phase = 0.0
+	_level_flash = 0.0
+	_recoil = 0.0
+	_model.position.y = 0.0
+	_model.rotation = Vector3(0.0, float(saved["facing"]), 0.0)
+	_level_ring.hide()
+
+
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return

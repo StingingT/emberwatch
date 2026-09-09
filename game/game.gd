@@ -14,10 +14,24 @@ const SoundScript = preload("res://game/sound_bank.gd")
 const FeedbackScript = preload("res://game/world_feedback.gd")
 const Campaign = preload("res://game/campaign_data.gd")
 const ProfileScript = preload("res://game/player_profile.gd")
+const RunStoreScript = preload("res://game/run_store.gd")
+const Snapshot = preload("res://game/run_snapshot.gd")
 
 var state: String = "menu"
 var persistent_profile: bool = true
 var profile: RefCounted
+var run_store: RefCounted
+# Explicit overrides support isolated tests; ordinary play uses portable user:// paths.
+var profile_path_override: String = ""
+var run_path_override: String = ""
+var _resume_snapshot: Dictionary = {}
+var _run_id: String = ""
+var _new_run_pending: bool = false
+var _restoring_run: bool = false
+var _checkpoint_remaining: float = 5.0
+var _checkpoint_queued: bool = false
+var _profile_save_notice: String = ""
+var _run_save_notice: String = ""
 var missions: Array[Dictionary] = []
 var mission_index: int = 0
 var hero: Node3D
@@ -61,9 +75,18 @@ var _run_start: Vector3
 func _ready() -> void:
 	missions = Campaign.missions()
 	profile = ProfileScript.new()
-	if not persistent_profile or DisplayServer.get_name() == "headless":
+	if not profile_path_override.is_empty():
+		profile.save_path = profile_path_override
+	elif not persistent_profile or DisplayServer.get_name() == "headless":
 		profile.save_path = ""
 	profile.load_profile()
+	run_store = RunStoreScript.new()
+	run_store.snapshot_validator = validate_run_snapshot
+	if not run_path_override.is_empty():
+		run_store.save_path = run_path_override
+	elif not persistent_profile or DisplayServer.get_name() == "headless":
+		run_store.save_path = ""
+	var loaded_run: Dictionary = run_store.load_run()
 	level = missions[0]["level"].duplicate(true)
 	wave_configs.assign(missions[0]["waves"])
 	plots.assign(level["plots"])
@@ -105,6 +128,7 @@ func _ready() -> void:
 	hud = HudScript.new()
 	add_child(hud)
 	hud.play_requested.connect(start_recommended_mission)
+	hud.continue_requested.connect(continue_defense)
 	hud.campaign_requested.connect(show_campaign)
 	hud.mission_requested.connect(start_mission)
 	hud.next_requested.connect(next_mission)
@@ -125,7 +149,19 @@ func _ready() -> void:
 	hud.show_title()
 	_update_hud()
 	if not str(profile.last_error).is_empty():
-		hud.set_save_notice("Save recovery: " + str(profile.last_error))
+		_profile_save_notice = "Save recovery: " + str(profile.last_error)
+	if loaded_run["status"] in ["active", "recovered"] and run_store.data.get("state") == "active":
+		_resume_snapshot = run_store.data["snapshot"].duplicate(true)
+		_run_id = str(run_store.data["run_id"])
+	if not str(loaded_run["error"]).is_empty():
+		_run_save_notice = "Battle save: " + str(loaded_run["error"])
+	_reconcile_terminal_victory()
+	_refresh_continue_summary()
+	_refresh_save_notice()
+	get_tree().auto_accept_quit = false
+	# Android sends its hardware Back action as a window notification. Keep the
+	# engine from quitting before the root can route it through the UI stack.
+	get_tree().quit_on_go_back = false
 
 func mission_unlocked(index: int) -> bool:
 	return index >= 0 and index < missions.size() and (index == 0 or profile.data["results"].has(missions[index - 1]["id"]))
@@ -146,6 +182,8 @@ func campaign_complete() -> bool:
 	return true
 
 func show_campaign() -> void:
+	if state in ["playing", "paused"]:
+		save_interrupted_run()
 	state = "campaign"
 	feedback.clear()
 	hero.move_input = Vector2.ZERO
@@ -170,6 +208,11 @@ func start_mission(id: String) -> bool:
 			break
 	if not mission_unlocked(index):
 		return false
+	_select_mission_world(index)
+	start_run()
+	return true
+
+func _select_mission_world(index: int) -> void:
 	state = "resetting"
 	mission_index = index
 	level = missions[index]["level"].duplicate(true)
@@ -186,8 +229,6 @@ func start_mission(id: String) -> bool:
 		plot_views[plot["id"]] = view
 	_world.setup(level)
 	_keep_model.position = level["keep"]
-	start_run()
-	return true
 
 func next_mission() -> void:
 	if state != "won":
@@ -245,11 +286,18 @@ func start_run() -> void:
 	_camera_focus = hero.position + Vector3(0, 0, -2)
 	_update_camera(1.0)
 	_refresh_range_ring()
+	_checkpoint_remaining = 5.0
+	if _restoring_run:
+		return
+	_run_id = Crypto.new().generate_random_bytes(16).hex_encode()
+	_new_run_pending = true
+	_resume_snapshot.clear()
 	state = "playing"
 	hud.show_game()
 	_update_selection()
 	_update_hud()
 	notify("Build a tower nearby, then head up the trail.", "info")
+	save_interrupted_run()
 
 func base_keep_health() -> float:
 	return float(level.get("keep_health", Data.KEEP_HEALTH))
@@ -276,6 +324,10 @@ func _physics_process(delta: float) -> void:
 		hero.move_input = (touch if touch.length() > 0.05 else keyboard).limit_length()
 		elapsed += delta
 		_advance_waves(delta)
+		_checkpoint_remaining -= delta
+		if _checkpoint_remaining <= 0.0 and not _checkpoint_queued:
+			_checkpoint_queued = true
+			_periodic_checkpoint.call_deferred()
 	_update_camera(delta)
 	_ui_timer -= delta
 	if _ui_timer <= 0.0:
@@ -620,8 +672,9 @@ func on_building_destroyed(building: Node3D) -> void:
 
 func constrain_hero_motion(from: Vector3, to: Vector3) -> Vector3:
 	var bounds: Rect2 = level["bounds"]
-	var candidate: Vector3 = Vector3(clampf(to.x, bounds.position.x + 0.7, bounds.end.x - 0.7), 0,
-		clampf(to.z, bounds.position.y + 0.7, bounds.end.y - 0.7))
+	var margin: float = float(Data.FOOTPRINTS["hero_margin"])
+	var candidate: Vector3 = Vector3(clampf(to.x, bounds.position.x + margin, bounds.end.x - margin), 0,
+		clampf(to.z, bounds.position.y + margin, bounds.end.y - margin))
 	if _position_blocked(candidate):
 		var slide_x := Vector3(candidate.x, 0, from.z)
 		var slide_z := Vector3(from.x, 0, candidate.z)
@@ -633,7 +686,7 @@ func constrain_hero_motion(from: Vector3, to: Vector3) -> Vector3:
 	return candidate
 
 func _position_blocked(at: Vector3) -> bool:
-	if at.distance_squared_to(level["keep"]) < 5.8:
+	if at.distance_squared_to(level["keep"]) < float(Data.FOOTPRINTS["keep_radius_squared"]):
 		return true
 	for building: Node3D in buildings.values():
 		if _building_footprint_contains(at, building.position, building.kind):
@@ -641,10 +694,7 @@ func _position_blocked(at: Vector3) -> bool:
 	return false
 
 func _building_footprint_contains(at: Vector3, center: Vector3, kind: String) -> bool:
-	var offset: Vector3 = at - center
-	if kind == "wall":
-		return absf(offset.x) < 1.85 and absf(offset.z) < 0.75
-	return offset.length_squared() < 2.1
+	return Data.building_footprint_contains(at, center, kind)
 
 func _construction_clearance(center: Vector3, kind: String) -> Vector3:
 	# Plots are walkable until built. Move an overlapping hero to the nearest
@@ -654,11 +704,13 @@ func _construction_clearance(center: Vector3, kind: String) -> Vector3:
 	var offset: Vector3 = hero.position - center
 	var candidates: Array[Vector3] = []
 	if kind == "wall":
+		var width: float = float(Data.FOOTPRINTS["wall_half_width"])
+		var depth: float = float(Data.FOOTPRINTS["wall_half_depth"])
 		candidates.assign([
-			center + Vector3(clampf(offset.x, -1.85, 1.85), 0, -0.85),
-			center + Vector3(clampf(offset.x, -1.85, 1.85), 0, 0.85),
-			center + Vector3(-1.95, 0, clampf(offset.z, -0.75, 0.75)),
-			center + Vector3(1.95, 0, clampf(offset.z, -0.75, 0.75))])
+			center + Vector3(clampf(offset.x, -width, width), 0, -depth - 0.1),
+			center + Vector3(clampf(offset.x, -width, width), 0, depth + 0.1),
+			center + Vector3(-width - 0.1, 0, clampf(offset.z, -depth, depth)),
+			center + Vector3(width + 0.1, 0, clampf(offset.z, -depth, depth))])
 	else:
 		if not offset.is_zero_approx():
 			candidates.append(center + offset.normalized() * 1.55)
@@ -667,7 +719,7 @@ func _construction_clearance(center: Vector3, kind: String) -> Vector3:
 			candidates.append(center + Vector3(sin(angle), 0, -cos(angle)) * 1.55)
 	var nearest: Vector3 = Vector3.INF
 	var best: float = INF
-	var walking_bounds: Rect2 = Rect2(level["bounds"]).grow(-0.7)
+	var walking_bounds: Rect2 = Rect2(level["bounds"]).grow(-float(Data.FOOTPRINTS["hero_margin"]))
 	for candidate: Vector3 in candidates:
 		if not walking_bounds.has_point(Vector2(candidate.x, candidate.z)) or _position_blocked(candidate):
 			continue
@@ -689,6 +741,7 @@ func pause_run() -> void:
 	hud.reset_input()
 	hero.move_input = Vector2.ZERO
 	hud.show_pause()
+	save_interrupted_run()
 
 func resume_run() -> void:
 	if state != "paused":
@@ -699,10 +752,13 @@ func resume_run() -> void:
 	_update_selection()
 
 func return_to_menu() -> void:
+	if state in ["playing", "paused"]:
+		save_interrupted_run()
 	state = "menu"
 	feedback.clear()
 	hud.reset_input()
 	hero.move_input = Vector2.ZERO
+	_refresh_continue_summary()
 	hud.show_title()
 
 func _finish_run(won: bool) -> void:
@@ -718,14 +774,29 @@ func _finish_run(won: bool) -> void:
 	if won:
 		var health_ratio: float = keep_health / maxf(1.0, keep_max)
 		stars = 3 if health_ratio >= float(Data.STAR_HEALTH_THRESHOLDS["three"]) else (2 if health_ratio >= float(Data.STAR_HEALTH_THRESHOLDS["two"]) else 1)
+	var outcome: Dictionary = {"kind": "victory" if won else "loss", "mission_id": missions[mission_index]["id"]}
+	if won:
+		outcome["stars"] = stars
+		outcome["seconds"] = maxf(0.01, elapsed)
+	# Keep an earlier unrecorded victory journal intact if profile storage is still
+	# unavailable. New session results remain usable but are visibly unsaved.
+	var retired: bool = _reconcile_terminal_victory()
+	if retired:
+		var terminal_id: String = _run_id if _new_run_pending or run_store.data.get("run_id", "") != _run_id else ""
+		retired = run_store.finish_run(outcome, terminal_id)
+	_run_save_notice = "" if retired else "The finished battle could not be saved. Previous recovery data may remain."
+	_resume_snapshot.clear()
+	_refresh_continue_summary()
+	if won:
 		saved = profile.record_victory(str(missions[mission_index]["id"]), stars, maxf(0.01, elapsed))
-		hud.set_save_notice("" if saved else "Progress is available this session, but could not be saved.")
+		_profile_save_notice = "" if saved else "Progress is available this session, but could not be saved."
+	_refresh_save_notice()
 	hud.show_context({})
 	hud.show_result(won, {"kills": kills, "coins": coins_collected, "wave": wave_index + 1,
 		"total_waves": wave_configs.size(), "stars": stars, "mission_name": missions[mission_index]["name"],
 		"next_available": won and mission_index + 1 < missions.size(),
 		"campaign_complete": won and campaign_complete(),
-		"save_failed": not saved})
+		"save_failed": not saved or not retired})
 	_update_hud()
 
 func _update_hud() -> void:
@@ -781,7 +852,8 @@ func _on_sound_toggled(enabled: bool) -> void:
 func change_setting(key: String, value: bool) -> void:
 	var saved: bool = profile.set_setting(key, value)
 	_apply_preferences()
-	hud.set_save_notice("" if saved else "Settings changed for this session; saving is unavailable.")
+	_profile_save_notice = "" if saved else "Settings changed for this session; saving is unavailable."
+	_refresh_save_notice()
 	if not saved:
 		notify("Settings changed for this session; saving is unavailable.", "danger")
 
@@ -793,8 +865,170 @@ func _apply_preferences() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED:
 		if is_instance_valid(hud):
-			pause_run()
+			if state == "playing":
+				pause_run()
+			elif state == "paused":
+				save_interrupted_run()
 			hud.reset_input()
 		Engine.max_fps = 15
 	elif what == NOTIFICATION_APPLICATION_RESUMED:
 		Engine.max_fps = 60
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_handle_android_back()
+	elif what == NOTIFICATION_WM_CLOSE_REQUEST and is_instance_valid(hud):
+		if state in ["playing", "paused"]:
+			state = "paused"
+			hud.reset_input()
+			hero.move_input = Vector2.ZERO
+			save_interrupted_run()
+		get_tree().quit()
+
+
+func _handle_android_back() -> bool:
+	if state == "playing":
+		pause_run()
+		return true
+	if is_instance_valid(hud) and hud.handle_back():
+		return true
+	if state in ["paused", "campaign", "won", "lost"]:
+		return_to_menu()
+		return true
+	# At the title screen the second Back action follows Android's normal app
+	# exit behavior. quit_on_go_back is disabled so this is an intentional exit.
+	get_tree().quit()
+	return true
+
+func capture_run_snapshot() -> Dictionary:
+	return Snapshot.capture(self)
+
+func validate_run_snapshot(saved: Dictionary) -> Dictionary:
+	return Snapshot.validate(saved, missions)
+
+func save_interrupted_run() -> bool:
+	if state not in ["playing", "paused"] or _restoring_run:
+		return false
+	_checkpoint_remaining = 5.0
+	var checked: Dictionary = validate_run_snapshot(capture_run_snapshot())
+	if not checked["ok"]:
+		_run_save_notice = "The current battle could not be saved. " + str(checked["error"])
+		_refresh_save_notice()
+		return false
+	_resume_snapshot = checked["data"]
+	var saved: bool = _reconcile_terminal_victory()
+	if saved:
+		saved = run_store.store_run(_resume_snapshot, _run_id if _new_run_pending else "")
+		if saved:
+			_new_run_pending = false
+	_run_save_notice = "" if saved else "This battle is available this session, but saving is unavailable."
+	_refresh_continue_summary()
+	_refresh_save_notice()
+	return saved
+
+func _periodic_checkpoint() -> void:
+	_checkpoint_queued = false
+	if state == "playing" and _checkpoint_remaining <= 0.0:
+		save_interrupted_run()
+
+func continue_defense() -> bool:
+	if state not in ["menu", "campaign"] or _resume_snapshot.is_empty():
+		return false
+	return restore_run_snapshot(_resume_snapshot)
+
+func restore_run_snapshot(saved: Dictionary) -> bool:
+	var checked: Dictionary = validate_run_snapshot(saved)
+	if not checked["ok"]:
+		return false
+	var snapshot: Dictionary = checked["data"]
+	var index: int = 0
+	for candidate: int in range(missions.size()):
+		if missions[candidate]["id"] == snapshot["mission_id"]:
+			index = candidate
+			break
+	_restoring_run = true
+	_select_mission_world(index)
+	start_run()
+	coins = int(snapshot["coins"])
+	coins_collected = int(snapshot["coins_collected"])
+	kills = int(snapshot["kills"])
+	smith_levels = snapshot["smith_levels"].duplicate()
+	keep_max = base_keep_health() * fortify_multiplier()
+	keep_health = float(snapshot["keep_health"])
+	elapsed = float(snapshot["elapsed"])
+	_used_volley = bool(snapshot["used_volley"])
+	_last_keep_warning = float(snapshot["last_keep_warning"])
+	_run_start = Snapshot.to_vector(snapshot["run_start"])
+	wave_index = int(snapshot["wave_index"])
+	wave_cursor = int(snapshot["wave_cursor"])
+	wave_active = bool(snapshot["wave_active"])
+	wave_timer = float(snapshot["wave_timer"])
+	hero.restore_state(snapshot["hero"])
+	for data: Dictionary in snapshot["buildings"]:
+		var plot: Dictionary = _plot_by_id(str(data["plot_id"]))
+		var building: Node3D = BuildingScript.new()
+		_structures.add_child(building)
+		building.setup(self, str(data["kind"]), str(data["plot_id"]), plot["position"], false)
+		building.restore_state(data)
+		buildings[building.plot_id] = building
+		plot_views[building.plot_id].visible = false
+	var restored_enemies: Dictionary = {}
+	for data: Dictionary in snapshot["enemies"]:
+		var enemy: Node3D = spawn_enemy(str(data["kind"]))
+		enemy.restore_state(data)
+		restored_enemies[int(data["id"])] = enemy
+	for data: Dictionary in snapshot["coins_on_ground"]:
+		var coin: Node3D = CoinScript.new()
+		_coins.add_child(coin)
+		coin.setup(self, Snapshot.to_vector(data["position"]), int(data["value"]))
+		coin.restore_state(data)
+	for data: Dictionary in snapshot["arrows"]:
+		var arrow: Node3D = ArrowScript.new()
+		_projectiles.add_child(arrow)
+		arrow.setup(self, Snapshot.to_vector(data["position"]), restored_enemies[int(data["target_id"])], float(data["damage"]), str(data["source"]), float(data["speed"]))
+		arrow.restore_state(data)
+	_camera_focus = Snapshot.to_vector(snapshot["camera_focus"])
+	_update_camera(0.0)
+	_resume_snapshot = snapshot.duplicate(true)
+	if _run_id.is_empty():
+		_run_id = Crypto.new().generate_random_bytes(16).hex_encode()
+		_new_run_pending = true
+	state = "paused"
+	_restoring_run = false
+	hud.reset_input()
+	hud.show_context({})
+	hud.show_pause()
+	_update_selection()
+	_update_hud()
+	_refresh_continue_summary()
+	_refresh_save_notice()
+	return true
+
+func _refresh_continue_summary() -> void:
+	if not is_instance_valid(hud):
+		return
+	var summary: Dictionary = {}
+	if not _resume_snapshot.is_empty():
+		for mission: Dictionary in missions:
+			if mission["id"] == _resume_snapshot["mission_id"]:
+				summary = {"mission_name": mission["name"], "wave": maxi(1, int(_resume_snapshot["wave_index"]) + 1),
+					"total_waves": mission["waves"].size(), "elapsed": _resume_snapshot["elapsed"]}
+	hud.set_continue_summary(summary)
+
+func _reconcile_terminal_victory() -> bool:
+	if run_store.data.get("state") != "terminal":
+		return true
+	var outcome: Dictionary = run_store.data["outcome"]
+	if outcome.get("kind") != "victory":
+		return true
+	var known: bool = false
+	for mission: Dictionary in missions:
+		if mission["id"] == outcome["mission_id"]:
+			known = true
+	if not known:
+		return true
+	var saved: bool = profile.record_victory(str(outcome["mission_id"]), int(outcome["stars"]), float(outcome["seconds"]))
+	_profile_save_notice = "" if saved else "A completed mission is awaiting a successful progress save."
+	return saved
+
+func _refresh_save_notice() -> void:
+	if is_instance_valid(hud):
+		hud.set_save_notice(" ".join([_profile_save_notice, _run_save_notice]).strip_edges())

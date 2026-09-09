@@ -14,15 +14,32 @@ var model: Node3D
 var cooldown: float = 0.25
 var _health_bar: MeshInstance3D
 var _health_back: MeshInstance3D
+var _construction_tween: Tween
 
-func setup(owner_game: Node, building_kind: String, id: String, at: Vector3) -> void:
+func setup(owner_game: Node, building_kind: String, id: String, at: Vector3, animate: bool = true) -> void:
 	game = owner_game
 	kind = building_kind
 	plot_id = id
 	position = at
 	stats = GameData.BUILDINGS[kind]
 	_refresh_health(true)
-	_rebuild_model()
+	_rebuild_model(animate)
+
+func capture_state() -> Dictionary:
+	return {"plot_id": plot_id, "kind": kind, "tier": tier,
+		"health": health, "cooldown": cooldown}
+
+## Setup and the run's Smith modifiers must be restored before this actor.
+func restore_state(saved: Dictionary) -> void:
+	plot_id = str(saved["plot_id"])
+	kind = str(saved["kind"])
+	tier = int(saved["tier"])
+	_refresh_health(true)
+	health = float(saved["health"])
+	# Idle towers can accumulate negative time while no target is in range.
+	cooldown = float(saved["cooldown"])
+	dead = false
+	_rebuild_model(false)
 
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(game) or not game.is_playing() or dead:
@@ -75,16 +92,19 @@ func _refresh_health(full: bool) -> void:
 	else:
 		health += max_health - old_max
 
-func _rebuild_model() -> void:
+func _rebuild_model(animate: bool = true) -> void:
+	if _construction_tween != null and _construction_tween.is_valid():
+		_construction_tween.kill()
+	_construction_tween = null
 	if is_instance_valid(model):
 		remove_child(model)
 		model.queue_free()
 	model = Visuals.building(kind, tier)
 	add_child(model)
-	if not game.reduced_motion():
+	if animate and not game.reduced_motion():
 		model.scale = Vector3(0.75, 0.05, 0.75)
-		var tween: Tween = create_tween()
-		tween.tween_property(model, "scale", Vector3.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_construction_tween = create_tween()
+		_construction_tween.tween_property(model, "scale", Vector3.ONE, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	if not is_instance_valid(_health_bar):
 		_health_back = _bar(Color("293d36"))
 		_health_bar = _bar(Color("f2b85f"))

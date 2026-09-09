@@ -1,6 +1,6 @@
-# Campaign checkpoint: scope and evidence
+# Historical campaign checkpoint: scope and evidence
 
-Recorded 2026-09-08 on Windows with Godot **4.7.stable.official.5b4e0cb0f**. This checkpoint delivers a playable six-mission offline campaign, persistent completed-mission results and settings, onboarding, and a campaign ending. Full-game development remains active beyond this checkpoint; interrupted-run recovery is next.
+Recorded 2026-09-08 on Windows with Godot **4.7.stable.official.5b4e0cb0f** at campaign checkpoint **`25793af`**. This historical record covers the playable six-mission offline campaign, persistent completed-mission results and settings, onboarding, and ending. Interrupted-run recovery is now implemented; current verification is recorded in [recovery_validation.md](recovery_validation.md) and indexed by [validation.md](validation.md). Full-game development remains active.
 
 The original first-playable acceptance at `0a59cd5` covered 182 checks and one six-wave defense. That historical record is [first_playable_acceptance.md](first_playable_acceptance.md). This document records the expanded campaign evidence.
 
@@ -14,7 +14,7 @@ The original first-playable acceptance at `0a59cd5` covered 182 checks and one s
 
 ## Verified checks
 
-`tools/validate.ps1 -Capture` completed successfully in the working source. The wrapper checks process exits and required success markers and rejects script errors, explicit failures and reported ObjectDB leaks. Generated logs/PNGs remain under `artifacts/` and are excluded from source control.
+At this historical campaign checkpoint, `tools/validate.ps1 -Capture` completed successfully. The table below records that run's counts, not the current expanded recovery suites. The wrapper checks process exits and required success markers and rejects script errors, explicit failures and reported ObjectDB leaks. Generated logs/PNGs remain under `artifacts/` and are excluded from source control.
 
 | Suite | Passed | Evidence |
 | --- | ---: | --- |
@@ -55,7 +55,7 @@ A fresh campaign source archive was extracted to a separate Windows directory wi
 
 ## Scope limits and next work
 
-- **Interrupted-run recovery is next.** The current profile preserves completed missions and settings, not a partly completed battle after process termination. Pausing while the process remains alive is covered separately.
+- Interrupted-run recovery was outstanding at this checkpoint and is now implemented. Its separate battle journal, compatible-state validation, paused continuation, lifecycle behavior and current package evidence are documented in [recovery_validation.md](recovery_validation.md).
 - Human playtesting, further presentation/audio polish and release preparation remain active work. Passing this checkpoint does not finish the full-game goal.
 - Mac import, iOS signing/install, physical-device multitouch, safe areas, interruptions and sustained performance/heat remain later or parallel verification. They do not block compatible desktop gameplay development.
 - The exact reference advertisement has not been supplied. No claim of verified advertisement fidelity, store release, GitHub publication or tested native iPhone compatibility is made.

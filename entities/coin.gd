@@ -24,6 +24,34 @@ func setup(owner_game: Node, at: Vector3, amount: int) -> void:
 	_model.position.y = 0.35
 
 
+func snapshot_available() -> bool:
+	return not _collected and not is_queued_for_deletion()
+
+
+func capture_state() -> Dictionary:
+	return {"position": [position.x, position.y, position.z], "value": value,
+		"magnetized": _magnetized, "magnet_speed": _magnet_speed,
+		"age": _age, "phase": _phase}
+
+
+## Restore directly after setup; collecting and merging remain gameplay actions.
+func restore_state(saved: Dictionary) -> void:
+	var at: Array = saved["position"]
+	position = Vector3(float(at[0]), float(at[1]), float(at[2]))
+	value = int(saved["value"])
+	_magnetized = bool(saved["magnetized"])
+	_magnet_speed = float(saved["magnet_speed"])
+	_age = float(saved["age"])
+	_phase = float(saved["phase"])
+	_collected = false
+	var bounce: float = absf(sin(_age * 8.0)) * maxf(0.0, 1.0 - _age * 1.5) * 0.5
+	_model.position.y = 0.34 + sin(_age * 3.5 + _phase) * 0.07 + bounce
+	_model.rotation.y = _age * 2.7
+	if game.reduced_motion():
+		_model.position.y = 0.34
+		_model.rotation.y = 0.0
+
+
 func _physics_process(delta: float) -> void:
 	if _collected or not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return

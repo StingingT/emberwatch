@@ -10,6 +10,7 @@ var checks: int = 0
 var counters := {"play": 0, "build": 0, "upgrade": 0, "smith": 0, "ability": 0, "retry": 0, "resume": 0}
 var campaign_signals: int = 0
 var next_signals: int = 0
+var continue_signals: int = 0
 var mission_selections: Array[String] = []
 var preference_changes: Array[Dictionary] = []
 var legacy_sound_signals: int = 0
@@ -221,6 +222,7 @@ func _run() -> void:
 	await _tap(0, retry)
 	_check(counters.retry == 2, "Retry accepts finger zero after an interrupted finger-one press")
 	await _check_campaign_and_preferences()
+	await _check_continue_defense()
 	print("UI_CHECKS: %d checks, %d failures" % [checks, failures])
 	hud.queue_free()
 	await process_frame
@@ -322,3 +324,103 @@ func _check_campaign_and_preferences() -> void:
 	_check(not hud._save_notice_panel.visible, "A successful later save clears the notice")
 	hud.show_result(true, {"save_failed": true})
 	_check(hud._save_notice_panel.visible, "A failed-save result also exposes its progress warning")
+
+
+func _check_continue_defense() -> void:
+	hud.continue_requested.connect(func() -> void: continue_signals += 1)
+	hud.set_save_notice("")
+	hud.show_title()
+	var initial_play: int = counters.play
+	var summary := {"mission_name": "Briarwood Crossing", "wave": 3, "total_waves": 6, "elapsed": 87.9}
+	hud.set_continue_summary(summary)
+	await process_frame
+	_check(_overlay_button("CONTINUE DEFENSE") != null, "An available saved defense updates the visible title")
+	var summary_panel: Panel = hud._overlay_card.get_node("ContinueSummary")
+	_check(summary_panel.get_node("ContinueMission").text == "Briarwood Crossing" and summary_panel.get_node("ContinueDetail").text == "Wave 3 / 6  ·  1:27 elapsed", "Continue summary identifies its mission, wave and elapsed time")
+	_check(continue_signals == 0 and counters.play == initial_play, "Presenting a recovery summary cannot start or continue a defense")
+	await _tap(0, _overlay_button("CONTINUE DEFENSE"))
+	_check(continue_signals == 1 and counters.play == initial_play, "Continue emits only its own signal through native touch")
+	_check(hud._overlay_mode == "title" and hud.movement_vector() == Vector2.ZERO, "Continue leaves restoration and paused-run routing to the composition root")
+	# Each interruption deliberately omits finger one's release event.
+	for interruption in [Node.NOTIFICATION_APPLICATION_PAUSED, Node.NOTIFICATION_APPLICATION_FOCUS_OUT]:
+		var before: int = continue_signals
+		var button: Button = _overlay_button("CONTINUE DEFENSE")
+		await _touch(1, button.get_global_rect().get_center(), true)
+		hud.notification(interruption)
+		await process_frame
+		_check(continue_signals == before and counters.play == initial_play, "Interrupting held Continue cannot emit a phantom action")
+		await _tap(0, button)
+		_check(continue_signals == before + 1, "Continue accepts finger zero after an interrupted finger-one press")
+	var continue_at: Vector2 = _overlay_button("CONTINUE DEFENSE").get_global_rect().get_center()
+	await _touch(1, continue_at, true)
+	hud.set_continue_summary(summary)
+	await _touch(1, continue_at, false)
+	_check(continue_signals == 4, "An identical summary refresh preserves a deliberate Continue tap")
+	await _tap(0, _overlay_button("Settings"))
+	_check(hud._overlay_mode == "settings", "Settings remain accessible beside Continue")
+	summary["wave"] = 4
+	hud.set_continue_summary(summary)
+	_check(hud._overlay_mode == "settings", "A recovery update does not replace an open settings screen")
+	await _tap(0, _overlay_button("Back"))
+	_check(_overlay_button("CONTINUE DEFENSE") != null and hud._overlay_card.get_node("ContinueSummary/ContinueDetail").text.contains("Wave 4 / 6"), "The updated recovery summary survives settings navigation")
+	await _tap(0, _overlay_button("How to play"))
+	await _tap(0, _overlay_button("Back"))
+	_check(_overlay_button("CONTINUE DEFENSE") != null, "Recovery remains available after How to play navigation")
+	await _tap(0, _overlay_button("DEFEND THE KEEP"))
+	_check(counters.play == initial_play + 1 and continue_signals == 4, "New defense remains a separate native action while Continue is available")
+	var before_campaign: int = campaign_signals
+	await _tap(0, _overlay_button("Campaign"))
+	_check(campaign_signals == before_campaign + 1, "Campaign navigation remains available with a saved defense")
+	# Replacing or hiding a held recovery action must discard its captured finger.
+	continue_at = _overlay_button("CONTINUE DEFENSE").get_global_rect().get_center()
+	await _touch(1, continue_at, true)
+	summary["mission_name"] = "Stonegate March"
+	hud.set_continue_summary(summary)
+	await _touch(1, continue_at, false)
+	_check(continue_signals == 4 and counters.play == initial_play + 1, "Replacing a held recovery summary cancels the previous Continue intent")
+	continue_at = _overlay_button("CONTINUE DEFENSE").get_global_rect().get_center()
+	await _touch(1, continue_at, true)
+	hud.set_continue_summary({})
+	await _touch(1, continue_at, false)
+	_check(_overlay_button("CONTINUE DEFENSE") == null and hud._overlay_card.get_node_or_null("ContinueSummary") == null, "An empty summary removes both recovery details and action")
+	_check(continue_signals == 4 and counters.play == initial_play + 1, "Hiding held Continue cannot activate the replacement primary action")
+	await _tap(0, _overlay_button("DEFEND THE KEEP"))
+	_check(counters.play == initial_play + 2, "New defense remains usable after the recovery summary is cleared")
+	hud.show_settings()
+	hud.set_continue_summary(summary)
+	await _tap(0, _overlay_button("Back"))
+	_check(_overlay_button("CONTINUE DEFENSE") != null, "A recovery summary added in settings appears when returning to title")
+	# Stress long text, larger controls, three aspect ratios and reserved save status.
+	summary["mission_name"] = "Briarwood Crossing and the Northern Watch of the Last Light beyond the ancient kingdom's farthest border"
+	hud.set_continue_summary(summary)
+	hud.set_preferences({"large_controls": true})
+	hud.set_save_notice("The previous save could not be updated. Your earlier defense is still available.")
+	for dimensions in [Vector2i(720, 1280), Vector2i(780, 1688), Vector2i(820, 1180)]:
+		root.content_scale_size = dimensions
+		root.size = dimensions
+		await process_frame
+		await process_frame
+		hud._layout()
+		_check(hud._safe.encloses(hud._overlay_card.get_global_rect()) and not hud._overlay_card.get_global_rect().intersects(hud._save_notice_panel.get_global_rect()), "Recovery title and save notice fit the safe area across aspect ratios")
+		var actions: Array[Button] = []
+		for title in ["CONTINUE DEFENSE", "DEFEND THE KEEP", "Campaign", "Settings", "How to play"]:
+			actions.append(_overlay_button(title))
+		var action_layout_valid: bool = true
+		for index in range(actions.size()):
+			action_layout_valid = action_layout_valid and hud._overlay_card.get_global_rect().encloses(actions[index].get_global_rect()) and actions[index].get_global_rect().size.y >= 54.0
+			for other in range(index + 1, actions.size()):
+				action_layout_valid = action_layout_valid and not actions[index].get_global_rect().intersects(actions[other].get_global_rect())
+		_check(action_layout_valid, "Recovery title keeps all five touch targets large, visible and separate")
+		summary_panel = hud._overlay_card.get_node("ContinueSummary")
+		var mission_label: Label = summary_panel.get_node("ContinueMission")
+		_check(summary_panel.get_global_rect().encloses(mission_label.get_global_rect()) and mission_label.max_lines_visible == 2 and mission_label.clip_text and not mission_label.get_global_rect().intersects(summary_panel.get_node("ContinueDetail").get_global_rect()), "Long recovery mission names remain bounded above wave and time details")
+		var before: int = continue_signals
+		await _tap(0, actions[0])
+		_check(continue_signals == before + 1 and counters.play == initial_play + 2, "Scaled recovery title still routes native Continue to only its own signal")
+	root.content_scale_size = Vector2i(720, 1280)
+	root.size = Vector2i(720, 1280)
+	await process_frame
+	await process_frame
+	hud.set_save_notice("")
+	hud.set_continue_summary({"mission_name": "Stonegate March", "wave": 4, "total_waves": 6, "elapsed": 122.7})
+	await _capture("ui_recovery_title")

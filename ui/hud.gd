@@ -3,6 +3,7 @@ extends CanvasLayer
 ## Presentation only. The composition root remains the authority for run state.
 
 signal play_requested
+signal continue_requested
 signal restart_requested
 signal menu_requested
 signal pause_requested
@@ -74,6 +75,7 @@ var _playing_ui: bool = false
 var _overlay_mode: String = "title"
 var _auxiliary_return: String = "title"
 var _campaign_missions: Array[Dictionary] = []
+var _continue_summary: Dictionary = {}
 var _mission_buttons: Dictionary = {}
 var _setting_buttons: Dictionary = {}
 var _preferences: Dictionary = {
@@ -140,9 +142,25 @@ func reset_input() -> void:
 				button.call("reset_touch")
 
 
+func handle_back() -> bool:
+	## Routes a platform back action through the visible overlay stack.
+	## The composition root remains responsible for pausing and quitting.
+	if not is_instance_valid(_overlay) or not _overlay.visible:
+		return false
+	match _overlay_mode:
+		"settings", "help":
+			_return_from_auxiliary()
+			return true
+		"campaign", "pause", "result":
+			menu_requested.emit()
+			return true
+	return false
+
+
 func show_title() -> void:
 	_show_overlay("title")
-	_overlay_card_size = Vector2(596, 950)
+	var has_continue: bool = not _continue_summary.is_empty()
+	_overlay_card_size = Vector2(596, 1000 if has_continue else 950)
 	var crest: Control = CREST.new()
 	_overlay_card.add_child(crest)
 	_rect(crest, 230, 10, 136, 136)
@@ -151,22 +169,51 @@ func show_title() -> void:
 	_center_label(_overlay_card, "Defend the last light", 27, 273, 44, MUTED)
 	_rule(_overlay_card, 213, 330, 170)
 	_center_label(_overlay_card, "A bow. A handful of coins.\nA kingdom worth defending.", 25, 358, 80, CREAM)
-	_instruction(467, "01", "MOVE & FIRE", "Drag the stick. Your archer aims for you.")
-	_instruction(546, "02", "COLLECT & BUILD", "Gather gold. Buy defenses at nearby plots.")
-	var play := _button(_overlay_card, "DEFEND THE KEEP", 28, true)
-	_rect(play, 46, 643, 504, 78)
+	if has_continue:
+		var saved := _panel(_overlay_card, Color("1b4031"))
+		saved.name = "ContinueSummary"
+		_rect(saved, 46, 462, 504, 119)
+		var mission := _label(saved, str(_continue_summary.get("mission_name", "Saved defense")), 25, CREAM, true)
+		mission.name = "ContinueMission"
+		mission.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		mission.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		mission.max_lines_visible = 2
+		mission.clip_text = true
+		mission.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		_rect(mission, 16, 10, 472, 62)
+		var seconds: int = maxi(0, int(_continue_summary.get("elapsed", 0.0)))
+		var detail := _label(saved, "Wave %d / %d  ·  %d:%02d elapsed" % [int(_continue_summary.get("wave", 0)), int(_continue_summary.get("total_waves", 0)), int(seconds / 60.0), seconds % 60], 21, GOLD)
+		detail.name = "ContinueDetail"
+		detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_rect(detail, 16, 79, 472, 30)
+		var continue_button := _button(_overlay_card, "CONTINUE DEFENSE", 28, true)
+		_rect(continue_button, 46, 599, 504, 78)
+		continue_button.pressed.connect(func() -> void: continue_requested.emit())
+	else:
+		_instruction(467, "01", "MOVE & FIRE", "Drag the stick. Your archer aims for you.")
+		_instruction(546, "02", "COLLECT & BUILD", "Gather gold. Buy defenses at nearby plots.")
+	var play := _button(_overlay_card, "DEFEND THE KEEP", 25 if has_continue else 28, not has_continue)
+	_rect(play, 46, 693 if has_continue else 643, 504, 68 if has_continue else 78)
 	play.pressed.connect(func() -> void: play_requested.emit())
 	var campaign := _button(_overlay_card, "Campaign", 25)
-	_rect(campaign, 46, 737, 504, 64)
+	_rect(campaign, 46, 777 if has_continue else 737, 504, 64)
 	campaign.pressed.connect(func() -> void: campaign_requested.emit())
 	var settings := _button(_overlay_card, "Settings", 23)
-	_rect(settings, 46, 817, 245, 64)
+	_rect(settings, 46, 857 if has_continue else 817, 245, 64)
 	settings.pressed.connect(show_settings)
 	var help := _button(_overlay_card, "How to play", 23)
-	_rect(help, 305, 817, 245, 64)
+	_rect(help, 305, 857 if has_continue else 817, 245, 64)
 	help.pressed.connect(show_how_to_play)
-	_center_label(_overlay_card, "Portrait play  /  WASD + Space on desktop", 17, 901, 28, MUTED)
+	_center_label(_overlay_card, "Portrait play  /  WASD + Space on desktop", 17, 950 if has_continue else 901, 28, MUTED)
 	_layout_overlay()
+
+
+func set_continue_summary(summary: Dictionary) -> void:
+	if _continue_summary == summary:
+		return
+	_continue_summary = summary.duplicate(true)
+	if is_instance_valid(_overlay) and _overlay.visible and _overlay_mode == "title":
+		show_title()
 
 
 func show_game() -> void:

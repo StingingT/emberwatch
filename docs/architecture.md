@@ -67,7 +67,7 @@ Root game methods usable by combat:
 
 ## UI agent — CONTINUE
 
-Own only `ui/hud.gd` (`class_name GameHUD extends CanvasLayer`), `ui/touch_stick.gd` (Control), optional UI helpers/assets authored under ui/. Programmatic responsive UI, touch-first, elegant deep evergreen/cream/gold panels, red accents; avoid tiny text. Portrait design 720x1280, auto-resize safe areas for iOS. Mouse/WASD are desktop alternatives, not substitute touch events. Read mobile skill's safe-area script before implementing its pattern.
+Own only `ui/hud.gd` (`class_name GameHUD extends CanvasLayer`), `ui/touch_stick.gd` (Control), optional UI helpers/assets authored under ui/. Programmatic responsive UI, touch-first, elegant deep evergreen/cream/gold panels, red accents; avoid tiny text. Portrait design 720x1280, auto-resize safe areas for iOS and Android. Mouse/WASD are desktop alternatives, not substitute touch events. Read mobile skill's safe-area script before implementing its pattern.
 
 GameHUD signals: `play_requested`, `restart_requested`, `menu_requested`, `pause_requested`, `resume_requested`, `build_requested(kind:String)`, `upgrade_requested`, `smith_requested(id:String)`, `ability_requested`, `sound_toggled(enabled:bool)`.
 

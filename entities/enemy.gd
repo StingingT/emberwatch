@@ -46,6 +46,31 @@ func setup(owner_game: Node, stats: Dictionary, route: Array[Vector3]) -> void:
 	_create_health_bar()
 
 
+func capture_state() -> Dictionary:
+	return {"position": [position.x, position.y, position.z], "kind": kind,
+		"health": health, "max_health": max_health, "route_index": route_index,
+		"attack_remaining": _attack_remaining, "facing": _model.rotation.y}
+
+
+## Setup supplies the configured kind, route and wave-scaled combat stats first.
+func restore_state(saved: Dictionary) -> void:
+	var at: Array = saved["position"]
+	position = Vector3(float(at[0]), float(at[1]), float(at[2]))
+	kind = str(saved["kind"])
+	health = float(saved["health"])
+	max_health = float(saved["max_health"])
+	route_index = int(saved["route_index"])
+	_attack_remaining = float(saved["attack_remaining"])
+	dead = false
+	_walk_phase = 0.0
+	_hit_flash = 0.0
+	_attack_swing = 0.0
+	_model.position.y = 0.0
+	_model.rotation = Vector3(0.0, float(saved["facing"]), 0.0)
+	_model.scale = _rest_scale
+	_update_health_bar()
+
+
 func _physics_process(delta: float) -> void:
 	if dead or not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return

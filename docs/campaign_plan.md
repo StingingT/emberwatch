@@ -18,12 +18,13 @@ The user asked to continue finishing the game after the first playable was accep
 - Headless tests and screenshot fixtures use isolated or memory-only profiles so they cannot alter the user's campaign.
 - First-run guidance explains movement/auto-fire, collecting gold, building, XP and Volley in response to actual actions. It remains noninteractive and can be disabled.
 - Reduced motion removes cosmetic bobbing, scaling and impact flashes while keeping gameplay movement/projectiles. Larger controls keep the portrait layout usable.
-- This profile milestone preserves completed missions and preferences. Restoring a partially completed battle after the operating system terminates the app is a separate outstanding save feature, not a completed claim.
+- Interrupted-battle recovery is implemented separately from the unchanged profile version 1. One battle checkpoints during play and lifecycle transitions, then Continue restores it paused without offline time. A compatible snapshot preserves the current run's actors, progression, health, gold and timers. See [run_recovery_plan.md](run_recovery_plan.md).
 
 ## Ownership and interfaces
 
 - `game/campaign_data.gd`: fresh mission dictionaries `{id,name,briefing,level,waves}`. Level adds optional starting gold, Keep health, building-limit overrides and palette to the existing schema.
 - `game/player_profile.gd`: owns versioned profile serialization and recovery, not runtime actors or gameplay rules.
+- `game/atomic_json_store.gd`: shared atomic publication and backup protection for profile/run owners. `game/run_store.gd` owns a separate version 1 battle journal; `game/run_snapshot.gd` validates content compatibility and actor state.
 - `game/game.gd`: owns mission selection/unlocks, world replacement, run reset, results, tutorial decisions and preference application. Existing `start_run()` restarts the selected mission.
 - `ui/hud.gd`: displays campaign/ending/preferences and emits selection or setting signals; it does not decide unlocks or write saves.
 - `levels/battlefield.gd` and entity presentation consume mission palette/preferences without changing combat rules.
@@ -40,6 +41,6 @@ The user asked to continue finishing the game after the first playable was accep
 
 ## Remaining full-game work
 
-The full goal remains active beyond a campaign scaffold or passing profile test. Finish and validate campaign pacing, interrupted-run recovery, presentation/audio polish and release preparation as implementation progresses. Human play feedback and native Mac/iPhone export, signing, real-device input/performance remain later or parallel verification; they do not block compatible desktop work. GitHub publication remains a separate future action.
+The full goal remains active after the campaign and recovery implementation. Human playtesting must assess campaign pacing, balance, clarity and enjoyment; further presentation/audio polish and release preparation remain. Native Mac/iPhone export, signing, real-device input, lifecycle and performance remain later or parallel verification and do not block compatible desktop work. GitHub publication remains a separate future action.
 
-The campaign checkpoint evidence is recorded in [campaign_validation.md](campaign_validation.md). The next feature is specified in [run_recovery_plan.md](run_recovery_plan.md); it is a proposal for implementation, not a completed save/resume claim.
+The historical campaign checkpoint is recorded in [campaign_validation.md](campaign_validation.md). Current recovery evidence and outstanding capture/archive checks are recorded in [recovery_validation.md](recovery_validation.md). The implemented save/resume contract is [run_recovery_plan.md](run_recovery_plan.md).

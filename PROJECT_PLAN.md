@@ -8,6 +8,7 @@ Updated: 2026-09-08
 - Tower defense is central to the game.
 - This task acts as main architect for design, implementation order, and integration.
 - Target iPhone first.
+- Keep Android as a secondary mobile target using the same source and portrait gameplay; Android validation can happen later or in parallel.
 - Use portrait orientation.
 - Use simple, colourful 3D with an angled camera.
 - The user reports access to a Mac and iPhone models from 12 through 16.
@@ -26,12 +27,12 @@ Updated: 2026-09-08
 ## Planned repository and Mac handoff
 
 1. Version the Godot source project, scenes, scripts, required assets, and non-secret export configuration.
-2. Include a README with the exact Godot version, required tools, import/run steps, and iOS export steps. Record the tested macOS, Xcode, and iOS versions when a build is verified.
+2. Include a README with the exact Godot version, required tools, import/run steps, and iOS/Android export steps. Record the tested macOS, Xcode, Android SDK, device and OS versions when a build is verified.
 3. Use project-relative paths and consistent filename case so the project can be imported from another checkout location.
 4. Exclude Godot's generated `.godot/` cache and build/export output folders. Use repository-local line-ending rules for text files.
 5. Decide whether large binary assets need Git LFS before adding them; document its setup if used.
 6. The Mac developer installs the pinned Godot version and matching export templates, imports the project, exports an Xcode project, then configures Apple signing and runs it on a physical iPhone. Record the chosen bundle identifier and signing setup instructions; keep private signing material out of Git.
-7. Verify the handoff from a fresh checkout. Record the commit, tool versions, device, iOS version, and results. A Windows desktop run does not establish iPhone compatibility.
+7. Verify the handoff from a fresh checkout. Record the commit, tool versions, device, iOS or Android version, and results. A Windows desktop run does not establish phone compatibility.
 
 GitHub publication is a later step. Source is prepared locally; no remote repository has been created or pushed. No iPhone build has been tested yet.
 
@@ -48,14 +49,17 @@ GitHub publication is a later step. Source is prepared locally; no remote reposi
 
 1. **Playable game for feedback — delivered:** the reference's combat/building loop on Windows, with portrait controls, the six-wave defense, progression, support buildings, and win/loss/restart. Current fresh-source checks and rendered output satisfy the initial playable objective; the detailed record is in `docs/first_playable_acceptance.md`.
 2. **Gameplay polish:** impact flashes, combined gold-pickup labels, wave completion progress, distinct Smith/Mine upgrades and safe purchase cancellation while moving are implemented and locally validated. Further refinements can follow play feedback; phone validation does not block that work.
-3. **Mac/iPhone validation, later or in parallel:** import the shared source on Mac, export through Xcode, and verify native controls, safe areas, lifecycle behavior and performance on physical iPhones. This is required before calling the phone version tested, and does not block milestones 1–2 or further desktop development.
-4. **Complete-game development — active:** the user asked to continue finishing the game after the first playable. Implement the six-mission offline campaign, persistent results/settings and first-run guidance described in `docs/campaign_plan.md`, then complete the remaining save, presentation and release work. Campaign scaffolding alone is not completion of this goal.
+3. **Mac/iPhone/Android validation, later or in parallel:** import the shared source on Mac or a configured Android machine, export through Xcode or the Android toolchain, and verify native controls, safe areas, lifecycle behavior and performance on physical phones. This is required before calling a phone platform tested, and does not block milestones 1–2 or further desktop development.
+4. **Complete-game development — active:** the six-mission offline campaign, persistent results/settings, first-run guidance and interrupted-battle recovery are implemented. Recovery keeps one battle, restores it paused without offline time, and preserves actor state and timers through a separate version 1 run journal. Human playtesting of pacing/balance, further presentation/audio polish and release preparation remain. Passing the current automated checks does not complete the full-game goal.
 
-The first playable now covers the core and expanded reference loop on Windows. Continue improving that playable game under the user's authorization. Initial-playable acceptance depends on its agreed gameplay and Windows evidence; it does not require campaign or store-release completion. Phone export, signing, real-device touch feel and performance remain pending Mac/iPhone verification. See `docs/validation.md` for current evidence, and `docs/mac_iphone_handoff.md` for the device checklist.
+The recovery implementation and its current verification are recorded in `docs/run_recovery_plan.md` and `docs/recovery_validation.md`. Profile version 1 remains unchanged. The iOS and Android handoff presets are 0.3.0/build 3 on Godot 4.7 stable. Historical first-playable (`0a59cd5`) and campaign (`25793af`) checkpoint evidence remains available; current validation follows the recovery source. Final current-source capture/archive verification is tracked in the recovery validation record and must not be inferred from an earlier archive.
+
+The first playable now covers the core and expanded reference loop on Windows. Continue improving that playable game under the user's authorization. Initial-playable acceptance depends on its agreed gameplay and Windows evidence; it does not require campaign or store-release completion. Phone export, signing, real-device touch feel and performance remain pending iPhone/Android verification. See `docs/validation.md` for current evidence, `docs/mac_iphone_handoff.md` for iOS and `docs/mobile_handoff.md` for the shared Android checklist.
 
 ## Technical references
 
 - [Godot iOS export requirements and Xcode workflow](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_ios.html)
+- [Godot Android export requirements](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_android.html)
 - [Godot version control guidance](https://docs.godotengine.org/en/stable/tutorials/best_practices/version_control_systems.html)
 - [Godot renderer selection](https://docs.godotengine.org/en/stable/tutorials/rendering/renderers.html)
 

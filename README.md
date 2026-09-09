@@ -17,13 +17,15 @@ Suggested first move: build the nearby Archer Tower for 40 gold, then head north
 
 Mission cards explain the strategic variation. Sunscar has one support plot, so choose a Mine or Smith. Moonfen allows two Mines. Win with at least 40%/80% Keep health for two/three stars; any victory earns one. Replaying cannot reduce your best rating or time.
 
-**Settings** on the title and pause screens control sound, reduced motion, larger controls and tutorial hints. Completed missions and preferences save locally with a recovery backup. Closing the app during an unfinished battle currently loses that battle's state; interrupted-run restoration remains in development.
+**Settings** on the title and pause screens control sound, reduced motion, larger controls and tutorial hints. Completed missions and preferences save locally with a recovery backup.
 
-## Play on Mac and test iPhone
+**Continue defense** restores one interrupted battle **paused**, including gold, health, hero XP, buildings, enemies, flying arrows, coin piles and timers. Resume when ready; no offline time advances. Checkpoints save every five seconds of active play and on pause, title return, app suspension and normal desktop close. An abrupt termination recovers the last successful checkpoint. Restarting or choosing a new mission replaces the saved battle. Save failures appear in the UI while session play remains available.
+
+## Play on Mac, test iPhone, and test Android
 
 Clone/copy the entire source project, install the same **Godot 4.7 stable**, import `project.godot`, and press F5. Alternatively run `bash tools/run_macos.sh`. No Windows-only plugins or external art packages are required.
 
-For an actual iPhone build, follow [docs/mac_iphone_handoff.md](docs/mac_iphone_handoff.md). An iOS export preset is included, with placeholder identity values that the Mac developer must replace. The first playable is locally validated on Windows; a Mac/iPhone build and device performance have not yet been verified.
+For an actual iPhone build, follow [docs/mac_iphone_handoff.md](docs/mac_iphone_handoff.md). For Android setup and the device checklist, see [docs/mobile_handoff.md](docs/mobile_handoff.md). iOS and Android export presets are source templates with placeholder signing values. Windows gameplay is validated; native iPhone and Android builds and device performance have not yet been verified.
 
 To make a portable source archive, run `powershell -NoProfile -ExecutionPolicy Bypass -File tools/package_source.ps1`. It creates `builds/emberwatch-source.zip` without generated caches, logs or private signing files. The recipient still needs Godot; this archive is source, not an installed iPhone app.
 
@@ -36,6 +38,7 @@ To make a portable source archive, run `powershell -NoProfile -ExecutionPolicy B
 - Three nearby Smith purchases: tower damage, tower attack rate, wall/Keep health.
 - Portrait native multi-touch, safe-area layout, pause/restart/win/loss, original procedural art and synthesized effects.
 - Campaign unlocks, best star/time records, a final ending, recoverable local profile, contextual first-run guidance and persistent accessibility/settings choices.
+- Interrupted-battle recovery, compatible-content checks, validated atomic writes and terminal records that prevent finished battles returning through a backup.
 
 ## Project structure
 
@@ -45,6 +48,8 @@ To make a portable source archive, run `powershell -NoProfile -ExecutionPolicy B
 | `game/game_data.gd` | Hero/enemy/building balance and level layout |
 | `game/campaign_data.gd` | Six mission layouts, wave rosters and strategic variations |
 | `game/player_profile.gd` | Versioned local progress/settings and recovery |
+| `game/atomic_json_store.gd` | Shared validated atomic JSON publication and backup protection |
+| `game/run_store.gd`, `game/run_snapshot.gd` | Separate battle journal, compatibility and actor-state validation |
 | `game/building.gd` | Tower fire, wall health, mine production, upgrades |
 | `game/world_feedback.gd` | Bounded impact flashes and combined gold pickup labels |
 | `entities/` | Hero, enemies, arrows and coins |
@@ -66,7 +71,12 @@ GODOT=/Applications/Godot.app/Contents/MacOS/Godot
 "$GODOT" --headless --path . --script tests/check_ui.gd --fixed-fps 60 --quit-after 4000
 "$GODOT" --headless --path . --script tests/check_feedback.gd --fixed-fps 60 --quit-after 4000
 "$GODOT" --headless --path . --script tests/check_profile.gd --fixed-fps 60 --quit-after 4000
+"$GODOT" --headless --path . --script tests/check_run_store.gd --fixed-fps 60 --quit-after 4000
+"$GODOT" --headless --path . --script tests/check_actor_snapshot.gd --fixed-fps 60 --quit-after 4000
 "$GODOT" --headless --path . --script tests/check_campaign.gd --fixed-fps 60 --quit-after 4000
+"$GODOT" --headless --path . --script tests/check_recovery.gd --fixed-fps 60 --quit-after 4000
+"$GODOT" --headless --path . --script tests/check_recovery_edges.gd --fixed-fps 60 --quit-after 4000
+"$GODOT" --headless --path . --script tests/check_recovery_continuation.gd --fixed-fps 60 --quit-after 8000
 "$GODOT" --headless --path . --script tests/check_playthrough.gd --fixed-fps 60 --quit-after 120000
 "$GODOT" --headless --path . --script tests/check_campaign_playthrough.gd --fixed-fps 60 --quit-after 150000
 ```
@@ -75,7 +85,7 @@ Check success markers and error output as well as exit codes: Godot may return e
 
 The supplied reference is preserved in `docs/kingshot_design_reference.md`. Current decisions and boundaries are in `docs/architecture.md`; the larger roadmap remains in `PROJECT_PLAN.md`.
 
-The current campaign scope and remaining full-game work are recorded in `docs/campaign_plan.md`. Tests and rendered fixtures use memory-only or isolated profiles and never overwrite player progress.
+Current evidence is in [docs/validation.md](docs/validation.md) and [docs/recovery_validation.md](docs/recovery_validation.md). The recovery contract is in [docs/run_recovery_plan.md](docs/run_recovery_plan.md); campaign scope and remaining full-game work are in [docs/campaign_plan.md](docs/campaign_plan.md). Tests and rendered fixtures use memory-only or isolated profile/run stores and never overwrite player progress. The iOS and Android handoff presets are version **0.3.0**, build **3**; signing and native validation remain pending. See [docs/mobile_handoff.md](docs/mobile_handoff.md) for Android setup.
 
 Building tier caps and Smith price scaling live in `game/game_data.gd`, alongside the other balance values. Routine balance changes do not require editing purchase logic.
 

@@ -39,10 +39,12 @@ func _run() -> void:
 	game.wave_index = 2
 	game.wave_active = true
 	game.wave_cursor = 12
+	# Earlier-wave fixture kills keep this staged state valid for pause recovery.
+	game.kills = game.wave_configs[0]["enemies"].size() + game.wave_configs[1]["enemies"].size()
 	game._camera_focus = game.hero.position + Vector3(0, 0, -2)
 	game._update_camera(1.0)
 	for i: int in range(12):
-		var enemy: Node3D = game.spawn_enemy("brute" if i % 4 == 0 else "goblin")
+		var enemy: Node3D = game.spawn_enemy("brute" if i % 4 == 0 else "goblin", float(game.wave_configs[2]["health_scale"]))
 		enemy.position = Vector3(-3.0 + float(i % 3) * 0.42, 0, -10.0 - float(i) * 0.85)
 		enemy.route_index = 4
 		if enemy.position.z < -11.0:
@@ -61,6 +63,7 @@ func _run() -> void:
 	game.feedback.set_process(false)
 	game.feedback.clear()
 	# Stage a partly defeated, fully spawned wave to inspect the filled bar.
+	game.kills += game.wave_configs[game.wave_index]["enemies"].size() - game.wave_cursor
 	game.wave_cursor = game.wave_configs[game.wave_index]["enemies"].size()
 	game.collect_coin(27, game.hero.position)
 	game.feedback.hit(Vector3(-3, 0, -10.0), true)

@@ -24,6 +24,29 @@ func setup(owner_game: Node, start: Vector3, target: Node3D, damage: float, sour
 	_orient_to_target()
 
 
+func snapshot_target() -> Node3D:
+	if _impacted or is_queued_for_deletion() or _lifetime <= 0.0:
+		return null
+	return _live_target()
+
+
+func capture_state() -> Dictionary:
+	return {"position": [position.x, position.y, position.z], "damage": _damage,
+		"source": _source, "speed": _speed, "lifetime": _lifetime}
+
+
+## The run controller resolves and supplies the target through setup first.
+func restore_state(saved: Dictionary) -> void:
+	var at: Array = saved["position"]
+	position = Vector3(float(at[0]), float(at[1]), float(at[2]))
+	_damage = float(saved["damage"])
+	_source = str(saved["source"])
+	_speed = float(saved["speed"])
+	_lifetime = float(saved["lifetime"])
+	_impacted = false
+	_orient_to_target()
+
+
 func _physics_process(delta: float) -> void:
 	if _impacted:
 		return

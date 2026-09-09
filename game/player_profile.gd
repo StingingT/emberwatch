@@ -3,6 +3,7 @@ extends RefCounted
 ## Small offline profile. Failed disk writes keep this session's progress in memory.
 ## The previous valid JSON remains in .bak; newer schemas are never overwritten.
 
+const StorageScript = preload("res://game/atomic_json_store.gd")
 const VERSION: int = 1
 const MAX_MISSIONS: int = 256
 const MAX_FILE_BYTES: int = 1048576
@@ -26,23 +27,11 @@ func load_profile() -> void:
 	if save_path.is_empty():
 		return
 	data = _defaults()
-	var primary: Dictionary = _read(save_path)
-	if primary["status"] == "future":
-		last_error = "This profile was saved by a newer game version. Its file has been preserved."
-		return
-	if primary["status"] == "valid":
-		data = primary["data"]
-		return
-	var backup: Dictionary = _read(save_path + ".bak")
-	if backup["status"] == "future":
-		last_error = "The profile backup belongs to a newer game version. Its file has been preserved."
-		return
-	if backup["status"] == "valid":
-		data = backup["data"]
-		last_error = "Recovered the last valid profile backup."
-		return
-	if primary["status"] != "missing" or backup["status"] != "missing":
-		last_error = "The profile could not be loaded. Using defaults for this session."
+	var storage: RefCounted = _storage()
+	var loaded: Dictionary = storage.load_document()
+	last_error = str(loaded["error"])
+	if loaded["status"] in ["valid", "recovered"]:
+		data = loaded["data"]
 
 
 func store() -> bool:
@@ -54,54 +43,10 @@ func store() -> bool:
 	data = checked["data"]
 	if save_path.is_empty():
 		return true
-	var backup_path: String = save_path + ".bak"
-	var temporary_path: String = save_path + ".tmp"
-	var backup_temporary_path: String = backup_path + ".tmp"
-	if DirAccess.dir_exists_absolute(save_path) or DirAccess.dir_exists_absolute(backup_path):
-		last_error = "The profile destination is a directory. Progress remains available for this session."
-		return false
-	# Recheck the files on every write, including when load_profile was never called.
-	var primary: Dictionary = _read(save_path)
-	var backup: Dictionary = _read(backup_path)
-	if primary["status"] == "future" or backup["status"] == "future":
-		last_error = "A newer profile version exists. Saving is disabled to preserve it."
-		return false
-	if primary["status"] == "unreadable" or backup["status"] == "unreadable":
-		last_error = "An existing profile could not be inspected. Its file has been preserved."
-		return false
-	if not _write_text(temporary_path, JSON.stringify(data, "\t")):
-		_remove_staging(temporary_path)
-		return false
-	if _read(temporary_path)["status"] != "valid":
-		last_error = "The temporary profile failed verification. The previous save is unchanged."
-		_remove_staging(temporary_path)
-		return false
-	# Only a validated primary may replace the backup. A corrupt primary must never
-	# destroy the valid recovery copy loaded earlier in this session.
-	if primary["status"] == "valid":
-		if not _write_text(backup_temporary_path, primary["text"]):
-			_remove_staging(temporary_path)
-			_remove_staging(backup_temporary_path)
-			return false
-		if _read(backup_temporary_path)["status"] != "valid":
-			last_error = "The profile backup failed verification. The previous save is unchanged."
-			_remove_staging(temporary_path)
-			_remove_staging(backup_temporary_path)
-			return false
-		if DirAccess.rename_absolute(backup_temporary_path, backup_path) != OK:
-			last_error = "Could not publish the profile backup. The previous save is unchanged."
-			_remove_staging(temporary_path)
-			_remove_staging(backup_temporary_path)
-			return false
-	# A same-directory rename publishes the fully flushed file. Do not delete the
-	# primary first: that would introduce a gap where a crash could lose the save.
-	if DirAccess.rename_absolute(temporary_path, save_path) != OK:
-		last_error = "Could not publish the profile. Progress remains available for this session."
-		_remove_staging(temporary_path)
-		_restore_missing_primary(backup_path)
-		return false
-	return true
-
+	var storage: RefCounted = _storage()
+	var saved: bool = storage.write_document(data)
+	last_error = storage.last_error
+	return saved
 
 func record_victory(mission_id: String, stars: int, seconds: float) -> bool:
 	last_error = ""
@@ -137,34 +82,6 @@ func set_setting(key: String, value: bool) -> bool:
 	data = checked["data"]
 	data["settings"][key] = value
 	return store()
-
-
-func _read(path: String) -> Dictionary:
-	if not FileAccess.file_exists(path):
-		return {"status": "missing"}
-	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return {"status": "unreadable"}
-	if file.get_length() > MAX_FILE_BYTES:
-		file.close()
-		return {"status": "unreadable"}
-	var text: String = file.get_as_text()
-	var read_error: Error = file.get_error()
-	file.close()
-	if read_error != OK and read_error != ERR_FILE_EOF:
-		return {"status": "unreadable"}
-	var parser := JSON.new()
-	if parser.parse(text) != OK or not parser.data is Dictionary:
-		return {"status": "invalid"}
-	var candidate: Dictionary = parser.data
-	var version: Variant = candidate.get("version")
-	# Recognize newer numeric schemas before validating their unknown contents.
-	if _whole_number(version) and float(version) > VERSION:
-		return {"status": "future"}
-	var checked: Dictionary = _validate(candidate)
-	if not checked["ok"]:
-		return {"status": "invalid"}
-	return {"status": "valid", "data": checked["data"], "text": text}
 
 
 static func _validate(candidate: Dictionary) -> Dictionary:
@@ -216,36 +133,10 @@ static func _invalid(message: String) -> Dictionary:
 	return {"ok": false, "error": message}
 
 
-func _write_text(path: String, text: String) -> bool:
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
-		last_error = "Could not open the profile for writing. Progress remains available for this session."
-		return false
-	file.store_string(text)
-	file.flush()
-	var write_error: Error = file.get_error()
-	file.close()
-	if write_error != OK:
-		last_error = "Could not finish writing the profile. Progress remains available for this session."
-		return false
-	return true
-
-
-func _restore_missing_primary(backup_path: String) -> void:
-	# Defensive rollback if a failed platform rename removed the destination.
-	if FileAccess.file_exists(save_path) or DirAccess.dir_exists_absolute(save_path):
-		return
-	var backup: Dictionary = _read(backup_path)
-	if backup["status"] != "valid":
-		return
-	var original_error: String = last_error
-	var recovery_path: String = save_path + ".restore.tmp"
-	if _write_text(recovery_path, backup["text"]):
-		DirAccess.rename_absolute(recovery_path, save_path)
-	_remove_staging(recovery_path)
-	last_error = original_error
-
-
-static func _remove_staging(path: String) -> void:
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
+func _storage() -> RefCounted:
+	var storage = StorageScript.new()
+	storage.save_path = save_path
+	storage.schema_version = VERSION
+	storage.max_file_bytes = MAX_FILE_BYTES
+	storage.validator = func(candidate: Dictionary) -> Dictionary: return _validate(candidate)
+	return storage

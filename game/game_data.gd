@@ -45,6 +45,14 @@ const BUILD_RADIUS: float = 3.5
 const PREPARATION_TIME: float = 5.0
 const BETWEEN_WAVES: float = 5.0
 const STAR_HEALTH_THRESHOLDS: Dictionary = {"two": 0.4, "three": 0.8}
+const FOOTPRINTS: Dictionary = {"hero_margin": 0.7, "keep_radius_squared": 5.8,
+	"building_radius_squared": 2.1, "wall_half_width": 1.85, "wall_half_depth": 0.75}
+
+static func building_footprint_contains(at: Vector3, center: Vector3, kind: String) -> bool:
+	var offset: Vector3 = at - center
+	if kind == "wall":
+		return absf(offset.x) < float(FOOTPRINTS["wall_half_width"]) and absf(offset.z) < float(FOOTPRINTS["wall_half_depth"])
+	return offset.length_squared() < float(FOOTPRINTS["building_radius_squared"])
 
 static func level() -> Dictionary:
 	var route: Array[Vector3] = [Vector3(0, 0, -28), Vector3(4, 0, -22),
