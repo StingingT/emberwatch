@@ -118,7 +118,7 @@ static func building(kind: String, tier: int) -> Node3D:
 	return root
 
 static func _tower(parts: Array, tier: int) -> void:
-	var height: float = 1.25 + float(tier - 1) * 0.43
+	var height: float = [1.25, 1.95, 2.65][tier - 1]
 	Kit.part(parts, "cylinder", Vector3(1.95, 0.18, 1.95), Vector3(0, 0.09, 0), STONE_DARK)
 	if tier == 1:
 		for x: float in [-0.51, 0.51]:
@@ -146,6 +146,14 @@ static func _tower(parts: Array, tier: int) -> void:
 		_banner(parts, Vector3(0.67, height + 0.50, 0.57), tier == 3)
 	if tier == 3:
 		Kit.part(parts, "box", Vector3(1.58, 0.12, 1.58), Vector3(0, height + 0.24, 0), GOLD)
+		# The final tower gains a wide upper weapon deck and two side launchers.
+		Kit.part(parts, "box", Vector3(2.40, 0.22, 1.32), Vector3(0, height + 0.34, 0), STONE_LIGHT)
+		for side: float in [-1.0, 1.0]:
+			Kit.part(parts, "box", Vector3(0.25, 0.52, 0.45), Vector3(side * 0.88, height + 0.67, 0), RED_DARK)
+			Kit.beam(parts, Vector3(side * 0.88, height + 0.98, 0.3), Vector3(side * 0.88, height + 0.98, -0.88), 0.17, IRON)
+			Kit.beam(parts, Vector3(side * 0.88 - 0.31, height + 0.98, -0.4), Vector3(side * 0.88 + 0.31, height + 0.98, -0.4), 0.13, GOLD)
+			Kit.beam(parts, Vector3(side * 0.52, height - 0.72, 0), Vector3(side * 1.06, height + 0.28, 0), 0.18, STONE_DARK)
+
 		Kit.part(parts, "box", Vector3(0.11, 0.11, 0.86), Vector3(-0.20, height + 0.92, -0.12), IRON)
 		Kit.part(parts, "box", Vector3(0.11, 0.11, 0.86), Vector3(0.20, height + 0.92, -0.12), IRON)
 
@@ -166,6 +174,11 @@ static func _wall(parts: Array, tier: int) -> void:
 		for x: float in [-1.26, -0.63, 0.0, 0.63, 1.26]:
 			Kit.part(parts, "box", Vector3(0.36, 0.34, 0.72), Vector3(x, height + 0.26, 0), STONE_LIGHT)
 		if tier == 3:
+			# A small gatehouse silhouette replaces a barely taller crenellated wall.
+			for x: float in [-1.25, 1.25]:
+				Kit.part(parts, "box", Vector3(0.65, 2.0, 0.95), Vector3(x, 1.05, 0), STONE_DARK)
+				Kit.part(parts, "roof", Vector3(0.85, 0.65, 1.08), Vector3(x, 2.30, 0), RED)
+				Kit.part(parts, "box", Vector3(0.16, 0.60, 0.06), Vector3(x, 1.55, 0.49), WOOD_DARK)
 			for x: float in [-1.21, 1.21]:
 				Kit.part(parts, "box", Vector3(0.32, 1.60, 0.77), Vector3(x, 0.84, 0), IRON)
 			Kit.part(parts, "box", Vector3(0.63, 0.71, 0.08), Vector3(0, 0.94, -0.385), RED)
@@ -186,6 +199,9 @@ static func _mine(parts: Array, tier: int) -> void:
 	for i: int in range(2 + tier):
 		Kit.part(parts, "ball", Vector3(0.26, 0.25, 0.20), Vector3(-0.70 + i * 0.15, 0.88 + (i % 2) * 0.19, -0.36), GOLD)
 	if tier >= 2:
+		# An exposed winding wheel makes extraction machinery readable from the side.
+		Kit.part(parts, "cylinder", Vector3(0.82, 0.16, 0.82), Vector3(-0.87, 0.90, -0.36), IRON, Vector3(0, 0, PI / 2))
+		Kit.part(parts, "cylinder", Vector3(0.55, 0.18, 0.55), Vector3(-0.88, 0.90, -0.36), GOLD, Vector3(0, 0, PI / 2))
 		# A tall timber shelter makes the second tier obvious above the ore hill.
 		for x: float in [-0.64, 0.64]:
 			Kit.part(parts, "box", Vector3(0.19, 1.75, 0.19), Vector3(x, 0.98, -0.51), WOOD)
@@ -225,7 +241,12 @@ static func _smith(parts: Array, tier: int) -> void:
 	Kit.part(parts, "box", Vector3(wall_width, wall_height, 1.24), Vector3(0, 0.12 + wall_height * 0.5, 0.03), masonry)
 	for x: float in [-0.66, 0.66]:
 		Kit.part(parts, "box", Vector3(0.12, wall_height + 0.06, 1.30), Vector3(x, 0.12 + wall_height * 0.5, 0.03), WOOD if tier == 1 else STONE_LIGHT)
-	Kit.part(parts, "roof", Vector3(1.83 + (tier - 1) * 0.08, roof_height, 1.61), Vector3(0, wall_top + roof_height * 0.5, 0.03), RED)
+	if tier == 2:
+		# The expanded forge has a broad flat canopy rather than the cottage gable.
+		Kit.part(parts, "box", Vector3(2.13, 0.25, 1.76), Vector3(0, wall_top + 0.28, 0.03), RED)
+		Kit.part(parts, "box", Vector3(2.18, 0.10, 0.13), Vector3(0, wall_top + 0.45, -0.78), RED_LIGHT)
+	else:
+		Kit.part(parts, "roof", Vector3(1.83 + (tier - 1) * 0.08, roof_height, 1.61), Vector3(0, wall_top + roof_height * 0.5, 0.03), RED)
 	var chimney_x: Array[float] = [0.43]
 	if tier == 3:
 		chimney_x.assign([-0.49, 0.49])
