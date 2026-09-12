@@ -1,5 +1,23 @@
 # Current validation: recovery checkpoint
 
+## Local test delivery 0.3.1, 2026-09-12
+
+The complete headless validation wrapper passed after integrating audio muting, mission-result statistics and campaign best-time labels (including 137 UI checks and six sound checks). Android version 0.3.1/code 4 exported successfully and passed APK v2/v3 signature verification. Its package metadata was read back. See `mobile_handoff.md` for the artifact and hash. Physical-device testing and human playtest feedback remain required; this is a local test build, not full-game acceptance or a newly published release.
+
+## Campaign records, 2026-09-12
+
+Mission cards now display the profile's best completion time for completed, unlocked missions. Unbeaten missions show no time record. The controller supplies the existing profile field without changing persistence or unlock rules. The Compatibility-rendered UI suite passed 137 checks, including displayed time and absent-record behavior; `artifacts/ui_campaign.png` was visually reviewed. Campaign lifecycle checks passed 71 assertions. Human pacing/balance feedback and physical-device validation remain outstanding.
+
+## Mission result feedback, 2026-09-12
+
+Victory and defeat summaries now receive the actual elapsed battle time and Keep health from the run controller. The results show minutes/seconds and the remaining health percentage alongside waves, kills and collected gold. The existing portrait card accommodates all five rows without moving its actions. The UI suite passed 135 checks in the Compatibility renderer, including a 127.9-second/315-of-450-health fixture displayed as 2:07 and 70%; `artifacts/ui_mission_result.png` was visually reviewed. Campaign lifecycle checks also passed all 71 assertions. These results do not establish human balance or phone performance.
+
+## Audio follow-up, 2026-09-12
+
+Disabling sound now stops all active effect players immediately. Re-enabling sound starts no old effects and allows a fresh event immediately; ordinary duplicate-event throttling remains active. `tests/check_sound.gd` exercises six playback-state checks using actual AudioStreamPlayers with the Dummy audio driver. It allows the audio mixer to retire stopped playbacks before shutdown. This verifies playback control, not perceived audio quality on speakers or phones.
+
+The complete headless `tools/validate.ps1` run passed with exit 0 after this change, including the new sound suite, all existing gameplay/UI/storage/recovery suites, the active win/unattended loss scenarios and all six campaign playthroughs. No new renderer or physical-device validation is claimed for this audio-only change. Full-game completion remains open.
+
 Date: 2026-09-09. Engine: **Godot 4.7.stable.official.5b4e0cb0f**, Windows. The six-mission campaign and interrupted-battle recovery are implemented. The complete working-source `tools/validate.ps1 -Capture` run and a fresh-source headless run passed with exit 0. The Android debug APK export also passed and its v2/v3 signature verified. Compatibility rendering was reviewed on an NVIDIA RTX 3060. This establishes Windows/source behavior, not a signed iPhone build or physical-device performance.
 
 The current detailed evidence is [recovery_validation.md](recovery_validation.md). The earlier first-playable checkpoint **`0a59cd5`** and campaign checkpoint **`25793af`** are historical; their evidence remains in [first_playable_acceptance.md](first_playable_acceptance.md) and [campaign_validation.md](campaign_validation.md). Full-game development remains active.

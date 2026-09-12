@@ -1,7 +1,13 @@
 class_name SoundBank
 extends Node
 ## Short original synthesized effects; no external audio dependencies.
-var enabled: bool = true
+var enabled: bool = true:
+	set(value):
+		enabled = value
+		if not enabled:
+			for player: AudioStreamPlayer in _players:
+				player.stop()
+			_last_played.clear()
 var _sounds: Dictionary = {}
 var _last_played: Dictionary = {}
 var _players: Array[AudioStreamPlayer] = []

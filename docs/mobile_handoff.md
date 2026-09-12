@@ -4,6 +4,8 @@ Emberwatch uses one Godot project for Windows, iOS and Android. The game remains
 
 ## Current status
 
+Local follow-up build **0.3.1 / 4**, exported 2026-09-12: `builds/android/Emberwatch-0.3.1-debug.apk`. It includes immediate audio muting, battle time/Keep health on results, and campaign best-time labels. APK v2/v3 signatures verified; package metadata confirms version 0.3.1 and code 4. SHA-256: `65BA302FCE2F721ECFB8D46E10C7126E3CE918B99D7B1F64D4F82E5C8F60148E`. This local build has not been uploaded to GitHub or tested on a physical phone. The older published 0.3.0 release remains available.
+
 The source project and desktop validation are ready for both mobile export paths. Windows is now configured with OpenJDK 17, the Android SDK, platform tools and the Godot 4.7 export templates. A debug APK exported successfully from the Android preset on 2026-09-09; no physical Android device is currently connected, so touch, lifecycle, safe-area and performance results remain pending. The iOS preset is a signing template and has not been installed on a physical iPhone.
 
 ## Android setup
@@ -20,7 +22,7 @@ godot --path . --export-debug "Android" builds/android/Emberwatch-debug.apk
 adb install -r builds/android/Emberwatch-debug.apk
 ```
 
-Use a release export and a private keystore for distribution. Never commit the keystore, passwords or generated APKs. The current local debug APK is `builds/android/Emberwatch-debug.apk` (28,405,199 bytes; SHA-256 `6955EAF49A5FDBB9B19C6BA54BE4D1204048C35282436226AAA0B3E37426493B`).
+Use a release export and a private keystore for distribution. Never commit the keystore, passwords or generated APKs. The previous 0.3.0 debug APK is `builds/android/Emberwatch-debug.apk` (28,405,199 bytes; SHA-256 `6955EAF49A5FDBB9B19C6BA54BE4D1204048C35282436226AAA0B3E37426493B`).
 
 ## Android acceptance
 

@@ -247,9 +247,12 @@ func _check_campaign_and_preferences() -> void:
 	for index in range(missions.size()):
 		missions[index]["unlocked"] = index < 2
 		missions[index]["stars"] = 2 if index == 0 else 0
+		missions[index]["best_time"] = 187.5 if index == 0 else 0.0
 	hud.show_campaign(missions)
 	await process_frame
 	_check(hud._mission_buttons.size() == 6, "Campaign exposes all six mission cards")
+	_check(hud._mission_buttons[str(missions[0]["id"])].get_node("BestTime").text == "BEST\n3:07", "Completed mission shows its best completion time")
+	_check(hud._mission_buttons[str(missions[1]["id"])].get_node_or_null("BestTime") == null, "Unbeaten mission does not invent a completion record")
 	await _tap(0, hud._mission_buttons[str(missions[2]["id"])])
 	_check(mission_selections.is_empty(), "A locked mission cannot emit a selection")
 	await _tap(0, hud._mission_buttons[str(missions[1]["id"])])
@@ -260,10 +263,15 @@ func _check_campaign_and_preferences() -> void:
 			if child is Label and child.autowrap_mode == TextServer.AUTOWRAP_WORD_SMART:
 				_check(button.get_global_rect().encloses(child.get_global_rect()), "Wrapped mission briefings remain inside their cards")
 	await _capture("ui_campaign")
-	hud.show_result(true, {"stars": 2, "next_available": true, "mission_name": "Briarwood Crossing", "wave": 3, "total_waves": 3, "kills": 24, "coins": 180})
+	hud.show_result(true, {"stars": 2, "next_available": true, "mission_name": "Briarwood Crossing", "wave": 3, "total_waves": 3, "kills": 24, "coins": 180, "elapsed": 127.9, "keep_health": 315.0, "keep_max": 450.0})
 	await _tap(0, _overlay_button("NEXT MISSION"))
 	_check(next_signals == 1, "A mission victory offers a native Next mission action")
 	_check(_overlay_button("DEFEND AGAIN") != null, "Mission victory retains replay")
+	var result_values: Array[String] = []
+	for child in hud._overlay_card.get_children():
+		if child is Label:
+			result_values.append(child.text)
+	_check("2:07" in result_values and "70%" in result_values, "Results show elapsed battle time and remaining Keep percentage")
 	await _capture("ui_mission_result")
 	hud.show_result(true, {"stars": 3, "campaign_complete": true, "mission_name": str(missions[5]["name"]), "wave": 6, "total_waves": 6})
 	var ending_visible: bool = false

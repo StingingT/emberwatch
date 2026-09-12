@@ -172,7 +172,8 @@ func campaign_rows() -> Array[Dictionary]:
 		var mission: Dictionary = missions[index]
 		var result: Dictionary = profile.data["results"].get(mission["id"], {})
 		rows.append({"id": mission["id"], "name": mission["name"], "briefing": mission["briefing"],
-			"unlocked": mission_unlocked(index), "stars": int(result.get("stars", 0))})
+			"unlocked": mission_unlocked(index), "stars": int(result.get("stars", 0)),
+			"best_time": float(result.get("best_time", 0.0))})
 	return rows
 
 func campaign_complete() -> bool:
@@ -793,6 +794,7 @@ func _finish_run(won: bool) -> void:
 	_refresh_save_notice()
 	hud.show_context({})
 	hud.show_result(won, {"kills": kills, "coins": coins_collected, "wave": wave_index + 1,
+		"elapsed": elapsed, "keep_health": keep_health, "keep_max": keep_max,
 		"total_waves": wave_configs.size(), "stars": stars, "mission_name": missions[mission_index]["name"],
 		"next_available": won and mission_index + 1 < missions.size(),
 		"campaign_complete": won and campaign_complete(),

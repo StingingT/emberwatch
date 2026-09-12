@@ -267,9 +267,13 @@ func show_result(won: bool, summary: Dictionary) -> void:
 	if summary.has("stars"):
 		_center_label(_overlay_card, _stars(int(summary["stars"])), 28, 320, 33, GOLD)
 	_rule(_overlay_card, 55, 359, 486)
-	_result_stat(390, "Waves", "%d / %d" % [int(summary.get("wave", 0)), int(summary.get("total_waves", 0))])
-	_result_stat(445, "Goblins defeated", str(summary.get("kills", 0)))
-	_result_stat(500, "Gold collected", str(summary.get("coins", 0)))
+	_result_stat(376, "Waves", "%d / %d" % [int(summary.get("wave", 0)), int(summary.get("total_waves", 0))])
+	_result_stat(415, "Goblins defeated", str(summary.get("kills", 0)))
+	_result_stat(454, "Gold collected", str(summary.get("coins", 0)))
+	var seconds: int = maxi(0, int(summary.get("elapsed", 0.0)))
+	_result_stat(493, "Battle time", "%d:%02d" % [int(seconds / 60.0), seconds % 60])
+	var health_percent: int = int(floor(clampf(float(summary.get("keep_health", 0.0)) / maxf(1.0, float(summary.get("keep_max", 1.0))), 0.0, 1.0) * 100.0))
+	_result_stat(532, "Keep remaining", "%d%%" % health_percent)
 	if has_next:
 		var next := _button(_overlay_card, "NEXT MISSION", 28, true)
 		_rect(next, 46, 585, 504, 76)
@@ -302,6 +306,12 @@ func show_campaign(missions: Array[Dictionary]) -> void:
 		_mission_buttons[id] = card
 		var number := _label(card, "%02d" % (index + 1), 25, GOLD if unlocked else MUTED)
 		_rect(number, 16, 12, 48, 37)
+		if unlocked and float(mission.get("best_time", 0.0)) > 0.0:
+			var seconds: int = int(mission["best_time"])
+			var record := _label(card, "BEST\n%d:%02d" % [int(seconds / 60.0), seconds % 60], 16, GOLD)
+			record.name = "BestTime"
+			record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			_rect(record, 8, 53, 61, 48)
 		var title := _label(card, str(mission.get("name", "Mission %d" % (index + 1))), 24, CREAM if unlocked else MUTED)
 		title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		title.clip_text = true

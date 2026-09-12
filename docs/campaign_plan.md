@@ -41,6 +41,6 @@ The user asked to continue finishing the game after the first playable was accep
 
 ## Remaining full-game work
 
-The full goal remains active after the campaign and recovery implementation. Human playtesting must assess campaign pacing, balance, clarity and enjoyment; further presentation/audio polish and release preparation remain. Native Mac/iPhone export, signing, real-device input, lifecycle and performance remain later or parallel verification and do not block compatible desktop work. GitHub publication remains a separate future action.
+The full goal remains active after the campaign and recovery implementation. Human playtesting must assess campaign pacing, balance, clarity and enjoyment; further presentation/audio polish and release preparation remain. Native Mac/iPhone export, signing, real-device input, lifecycle and performance remain later or parallel verification and do not block compatible desktop work. The public GitHub repository contains the 0.3.0 checkpoint; local 0.3.1 delivery and its playtest guide are recorded in `mobile_handoff.md` and `playtest_031.md`.
 
 The historical campaign checkpoint is recorded in [campaign_validation.md](campaign_validation.md). Current recovery evidence and outstanding capture/archive checks are recorded in [recovery_validation.md](recovery_validation.md). The implemented save/resume contract is [run_recovery_plan.md](run_recovery_plan.md).
