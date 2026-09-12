@@ -12,7 +12,7 @@ Use **Godot 4.7 stable, standard edition**. Double-click **play_windows.cmd**, o
 2. Move with **WASD / arrow keys** or drag the on-screen stick. Your archer aims and fires automatically.
 3. Walk near an empty plot and click its build button. **E** builds/upgrades the nearest plot on desktop (support plots default to Mine; use buttons to choose Smith).
 4. Walk near dropped coins to collect them. Building and upgrading spend the same gold during combat.
-5. Hero damage earns proportional XP, even when towers land the final hit. At level 2, **Space / Volley** fires a stronger multi-target attack.
+5. Hero damage earns proportional XP, even when towers land the final hit. Each level-up pauses for a Multishot, Volley or Piercing upgrade. At level 2, **Space / Volley** fires a stronger multi-target attack.
 6. Protect the Keep through each mission's five to seven waves. Win to unlock the next mission; use **Next mission** or replay for a better rating. **Escape / II** pauses.
 
 Suggested first move: build the nearby Archer Tower for 40 gold, then head north toward incoming enemies. Walls buy time; Mine coins must be collected; the Smith strengthens towers and fortifications. Smith upgrades apply for the current run. Restart resets the run.

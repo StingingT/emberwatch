@@ -68,6 +68,12 @@ func _run_scenario(active_player: bool) -> Dictionary:
 	var was_alive: bool = _game.hero.is_alive()
 	while _game.is_playing() and float(_game.elapsed) < TIME_LIMIT:
 		await physics_frame
+		if active_player and _game.hero.pending_choices() > 0:
+			_game.offer_hero_choice()
+			while _game.hero.pending_choices() > 0:
+				var options: Array[String] = ["multishot", "piercing", "volley"]
+				var spent: int = _game.hero.tier - 1 - _game.hero.pending_choices()
+				_game.choose_hero_upgrade(options[spent % 3])
 		var moved: float = _game.hero.position.distance_to(_previous_position)
 		# Respawn is an authored relocation, not an input-driven movement step.
 		if not was_alive and _game.hero.is_alive() and _game.hero.position.distance_to(_game.hero_respawn_position()) < 0.001:

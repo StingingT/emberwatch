@@ -20,6 +20,7 @@ const RunStoreScript = preload("res://game/run_store.gd")
 const Snapshot = preload("res://game/run_snapshot.gd")
 
 var state: String = "menu"
+var _require_movement_release: bool = false
 var persistent_profile: bool = true
 var profile: RefCounted
 var run_store: RefCounted
@@ -139,6 +140,7 @@ func _ready() -> void:
 	hud.menu_requested.connect(return_to_menu)
 	hud.pause_requested.connect(pause_run)
 	hud.resume_requested.connect(resume_run)
+	hud.hero_choice_requested.connect(choose_hero_upgrade)
 	hud.build_requested.connect(build_selected)
 	hud.upgrade_requested.connect(upgrade_selected)
 	hud.smith_requested.connect(buy_smith_upgrade)
@@ -319,10 +321,16 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(hero):
 		return
 	hero.move_input = Vector2.ZERO
+	if is_playing() and hero.pending_choices() > 0:
+		offer_hero_choice()
 	if is_playing():
 		var keyboard := Vector2(
 			float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),
 			float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)) - float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
+		if _require_movement_release:
+			if keyboard == Vector2.ZERO:
+				_require_movement_release = false
+			keyboard = Vector2.ZERO
 		var touch: Vector2 = hud.movement_vector()
 		hero.move_input = (touch if touch.length() > 0.05 else keyboard).limit_length()
 		elapsed += delta
@@ -788,6 +796,28 @@ func use_ability() -> void:
 		if hero.use_ability():
 			_used_volley = true
 
+func offer_hero_choice() -> void:
+	if state not in ["playing", "paused"] or hero.pending_choices() <= 0:
+		return
+	state = "paused"
+	hero.move_input = Vector2.ZERO
+	hud.reset_input()
+	_require_movement_release = true
+	hud.show_hero_choices(hero.choices)
+
+func choose_hero_upgrade(id: String) -> void:
+	if state != "paused" or hud._overlay_mode != "hero_choice":
+		return
+	if not hero.choose_upgrade(id):
+		return
+	hud.reset_input()
+	hero.move_input = Vector2.ZERO
+	play_sound("level_up")
+	if hero.pending_choices() > 0:
+		offer_hero_choice()
+	else:
+		resume_run()
+
 func pause_run() -> void:
 	if not is_playing():
 		return
@@ -799,6 +829,9 @@ func pause_run() -> void:
 
 func resume_run() -> void:
 	if state != "paused":
+		return
+	if hero.pending_choices() > 0:
+		offer_hero_choice()
 		return
 	state = "playing"
 	hud.reset_input()

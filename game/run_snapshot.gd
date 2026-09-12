@@ -116,7 +116,7 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 	if int(saved["kills"]) + saved["enemies"].size() != spawned:
 		return invalid("Spawned and surviving enemy counts do not agree.")
 	var hero: Variant = saved["hero"]
-	if not keys(hero, ["position", "tier", "xp", "ability_cooldown", "shot_remaining", "facing", "health", "respawn_remaining", "protection_remaining"]):
+	if not keys(hero, ["position", "tier", "xp", "choices", "ability_cooldown", "shot_remaining", "facing", "health", "respawn_remaining", "protection_remaining"]):
 		return invalid("Invalid archer fields.")
 	if not number(hero["health"], 0, float(Data.HERO["health"])) or not number(hero["respawn_remaining"], 0, float(Data.HERO["respawn_seconds"])) or not number(hero["protection_remaining"], 0, float(Data.HERO["protection_seconds"])):
 		return invalid("Invalid archer health or respawn timers.")
@@ -132,6 +132,15 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 	if hero_position.distance_squared_to(level["keep"]) < float(Data.FOOTPRINTS["keep_radius_squared"]):
 		return invalid("The archer cannot be restored inside the Keep.")
 	var tier: int = int(hero["tier"])
+	if not keys(hero["choices"], ["multishot", "volley", "piercing"]):
+		return invalid("Invalid hero choices.")
+	var spent_choices: int = 0
+	for rank: Variant in hero["choices"].values():
+		if not integer(rank, 0, thresholds.size()):
+			return invalid("Invalid hero choice rank.")
+		spent_choices += int(rank)
+	if spent_choices > tier - 1:
+		return invalid("Hero choices exceed earned levels.")
 	var max_xp: float = float(thresholds[tier - 1]) if tier <= thresholds.size() else 0.0
 	if tier <= thresholds.size() and number(hero["xp"], max_xp, MAX_COUNT):
 		return invalid("Unprocessed archer level-up.")

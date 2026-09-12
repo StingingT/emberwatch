@@ -131,6 +131,8 @@ func _prepare_busy_fixture() -> void:
 		elif index == 1:
 			enemy.take_damage(12.0, "hero")
 	_original.hero.add_xp(21)
+	while _original.hero.pending_choices() > 0:
+		_original.hero.choose_upgrade("volley")
 	_original.hero._physics_process(0.01)
 	_original.buildings["crossing"]._physics_process(0.3)
 	_original.use_ability()
@@ -174,6 +176,9 @@ func _step_game(game: Node3D, frame: int) -> void:
 	if frame in [780, 960]:
 		game.use_ability()
 	game._physics_process(STEP)
+	while game.hero.pending_choices() > 0:
+		game.offer_hero_choice()
+		game.choose_hero_upgrade("volley")
 	# Match the root's scene-tree processing order: Actors (hero then enemies),
 	# Projectiles, Coins, Structures. Each container snapshot is taken at its
 	# turn, so newly emitted actors participate in the same order in both roots.

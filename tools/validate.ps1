@@ -26,6 +26,7 @@ function Invoke-EngineCheck {
 
 Invoke-EngineCheck -Name 'import' -EngineArguments @('--headless', '--editor', '--import', '--quit')
 Invoke-EngineCheck -Name 'hero_danger' -EngineArguments @('--headless', '--script', 'tests/check_hero_danger.gd', '--fixed-fps', '60', '--quit-after', '4000') -Expected 'HERO_DANGER_PASS:'
+Invoke-EngineCheck -Name 'hero_choices' -EngineArguments @('--headless', '--script', 'tests/check_hero_choices.gd', '--fixed-fps', '60', '--quit-after', '4000') -Expected 'HERO_CHOICES_PASS:'
 Invoke-EngineCheck -Name 'piercing_arrow' -EngineArguments @('--headless', '--script', 'tests/check_piercing_arrow.gd', '--fixed-fps', '60', '--quit-after', '4000') -Expected 'PIERCING_ARROW_PASS:'
 Invoke-EngineCheck -Name 'ranged_enemy' -EngineArguments @('--headless', '--script', 'tests/check_ranged_enemy.gd', '--fixed-fps', '60', '--quit-after', '4000') -Expected 'RANGED_ENEMY_PASS:'
 Invoke-EngineCheck -Name 'sound' -EngineArguments @('--headless', '--audio-driver', 'Dummy', '--script', 'tests/check_sound.gd', '--quit-after', '4000') -Expected 'SOUND_CHECKS_PASS:'

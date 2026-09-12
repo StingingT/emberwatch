@@ -92,7 +92,7 @@ func _check_hero() -> void:
 	source.ability_cooldown = 7.35
 	source._shot_remaining = 0.315
 	source._model.rotation.y = -1.23
-	var saved: Dictionary = _json_snapshot(source, ["position", "tier", "xp", "ability_cooldown", "shot_remaining", "facing", "health", "respawn_remaining", "protection_remaining"])
+	var saved: Dictionary = _json_snapshot(source, ["position", "tier", "xp", "choices", "ability_cooldown", "shot_remaining", "facing", "health", "respawn_remaining", "protection_remaining"])
 	var restored: Node3D = _add_actor(HeroScript)
 	restored.setup(_game, Data.HERO)
 	restored.move_input = Vector2.ONE

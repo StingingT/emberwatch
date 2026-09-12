@@ -2,6 +2,7 @@ class_name GameHUD
 extends CanvasLayer
 ## Presentation only. The composition root remains the authority for run state.
 
+signal hero_choice_requested(id: String)
 signal play_requested
 signal continue_requested
 signal restart_requested
@@ -148,6 +149,8 @@ func handle_back() -> bool:
 	if not is_instance_valid(_overlay) or not _overlay.visible:
 		return false
 	match _overlay_mode:
+		"hero_choice":
+			return true
 		"settings", "help":
 			_return_from_auxiliary()
 			return true
@@ -226,6 +229,23 @@ func show_game() -> void:
 	_sync_hint_visibility()
 	_layout_overlay()
 
+
+func show_hero_choices(ranks: Dictionary) -> void:
+	_show_overlay("hero_choice")
+	_overlay_card_size = Vector2(596, 780)
+	_center_label(_overlay_card, "LEVEL UP", 22, 35, 35, GOLD)
+	_center_label(_overlay_card, "Shape your archer", 40, 90, 65, CREAM)
+	_center_label(_overlay_card, "Choose one. Battle is paused.", 23, 165, 40, MUTED)
+	var ids: Array[String] = ["multishot", "volley", "piercing"]
+	var names: Array[String] = ["MULTISHOT", "VOLLEY", "PIERCING"]
+	var details: Array[String] = ["2 more enemies per shot\nExtra arrows deal 55% damage", "Active burst: +2 targets\nand +20% base damage", "Straight arrows pierce 3 enemies\n85% damage; +1 target per rank"]
+	for index: int in range(3):
+		var id: String = ids[index]
+		var button := _button(_overlay_card, "%s  %d\n%s" % [names[index], int(ranks[id]) + 1, details[index]], 24, true)
+		button.name = "Choice_" + id
+		_rect(button, 40, 238 + index * 158, 516, 132)
+		button.pressed.connect(func() -> void: hero_choice_requested.emit(id))
+	_layout_overlay()
 
 func show_pause() -> void:
 	_show_overlay("pause")
