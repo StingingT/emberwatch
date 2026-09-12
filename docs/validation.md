@@ -1,5 +1,9 @@
 # Current validation: recovery checkpoint
 
+## Live upgrade previews, after 0.3.1
+
+The nearby upgrade panel now previews next-tier tower arrow damage/range (including current Smith damage bonuses), mine gold per interval, wall health after full repair (including fortification), and the Smith's maximum per-purchase discount. Costs and purchase rules remain unchanged. The full headless regression wrapper passed with exit 0. The expanded economy suite then passed 74 checks, including real tower/mine offers, Smith discounts, damaged fortified walls, tower damage bonuses and capped buildings. Portrait captures for tower, wall, mine and Smith offers were visually reviewed (`upgrade_bend.png`, `upgrade_choke.png`, `upgrade_quarry.png`, `smith.png`). These source changes are newer than the packaged 0.3.1 APK and ZIP.
+
 ## Local test delivery 0.3.1, 2026-09-12
 
 The complete headless validation wrapper passed after integrating audio muting, mission-result statistics and campaign best-time labels (including 137 UI checks and six sound checks). Android version 0.3.1/code 4 exported successfully and passed APK v2/v3 signature verification. Its package metadata was read back. See `mobile_handoff.md` for the artifact and hash. Physical-device testing and human playtest feedback remain required; this is a local test build, not full-game acceptance or a newly published release.

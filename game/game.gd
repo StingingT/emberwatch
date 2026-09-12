@@ -536,6 +536,7 @@ func _context() -> Dictionary:
 		if building.tier < building.maximum_level():
 			result["upgrade_cost"] = int(spec["costs"][building.tier])
 			result["can_upgrade"] = coins >= int(result["upgrade_cost"])
+			result["subtitle"] = _upgrade_preview(building)
 		else:
 			result["subtitle"] = "Maximum level · hold the line"
 		if building.kind == "smith":
@@ -554,6 +555,27 @@ func _context() -> Dictionary:
 				"enabled": coins >= int(spec["costs"][0]) and below_limit})
 	result["options"] = options
 	return result
+
+func _stat_number(value: float, decimals: int) -> String:
+	return String.num(value, decimals).trim_suffix(".0")
+
+func _upgrade_preview(building: Node3D) -> String:
+	var spec: Dictionary = Data.BUILDINGS[building.kind]
+	var current: int = building.tier - 1
+	var next: int = building.tier
+	match building.kind:
+		"tower":
+			return "Arrow damage %s → %s · Range %s → %s" % [
+				_stat_number(float(spec["damage"][current]) * ranged_multiplier(), 1), _stat_number(float(spec["damage"][next]) * ranged_multiplier(), 1),
+				_stat_number(float(spec["range"][current]), 1), _stat_number(float(spec["range"][next]), 1)]
+		"wall":
+			return "Health %s → %s · Fully repairs" % [_stat_number(building.health, 1), _stat_number(float(spec["health"][next]) * fortify_multiplier(), 1)]
+		"mine":
+			return "Gold %d / %ss → %d / %ss" % [int(spec["production"][current]), _stat_number(float(spec["interval"][current]), 1),
+				int(spec["production"][next]), _stat_number(float(spec["interval"][next]), 1)]
+		"smith":
+			return "Smith purchases cost up to %d less gold" % int(Data.SMITH_PRICING["tier_discount"])
+	return "Level %d → %d" % [building.tier, building.tier + 1]
 
 func build_selected(kind: String) -> void:
 	build_at(str(selected_plot.get("id", "")), kind)

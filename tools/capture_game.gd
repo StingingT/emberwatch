@@ -82,6 +82,14 @@ func _run() -> void:
 	for frame: int in range(6):
 		await process_frame
 	await _capture("smith_purchase")
+	# Inspect the production upgrade offers for all other structure types.
+	for plot_id: String in ["bend", "choke", "quarry"]:
+		game.hero.position = game._plot_by_id(plot_id)["position"] + Vector3(0, 0, 2.2)
+		game._camera_focus = game.hero.position + Vector3(0, 0, -2)
+		game._update_camera(1.0)
+		game._update_selection()
+		game._update_hud()
+		await _capture("upgrade_" + plot_id)
 	game.pause_run()
 	await _capture("pause")
 	print("CAPTURE_PASS")
