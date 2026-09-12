@@ -63,7 +63,7 @@ func _physics_process(delta: float) -> void:
 		_model.position.y = 0.34
 		_model.rotation.y = 0.0
 	var hero: Node3D = game.call("get_hero") as Node3D
-	if not is_instance_valid(hero):
+	if not is_instance_valid(hero) or not hero.is_alive():
 		return
 	var destination: Vector3 = hero.global_position
 	destination.y = global_position.y

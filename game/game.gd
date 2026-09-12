@@ -463,6 +463,16 @@ func show_hit(at: Vector3, lethal: bool) -> void:
 func get_hero() -> Node3D:
 	return hero
 
+func hero_respawn_position() -> Vector3:
+	var bounds: Rect2 = Rect2(level["bounds"]).grow(-float(Data.FOOTPRINTS["hero_margin"]))
+	for radius: int in range(3, 20):
+		for step: int in range(24):
+			var angle: float = TAU * step / 24.0
+			var at: Vector3 = level["keep"] + Vector3(sin(angle), 0, -cos(angle)) * radius
+			if bounds.has_point(Vector2(at.x, at.z)) and not _position_blocked(at):
+				return at
+	return hero.position
+
 func get_blocking_wall(at: Vector3, next: Vector3) -> Node3D:
 	var travel: Vector3 = next - at
 	travel.y = 0.0
@@ -526,7 +536,7 @@ func _refresh_range_ring() -> void:
 	add_child(_range_ring)
 
 func _context() -> Dictionary:
-	if selected_plot.is_empty() or not is_playing():
+	if selected_plot.is_empty() or not is_playing() or not hero.is_alive():
 		return {}
 	var result: Dictionary = {"title": "Build your defense", "subtitle": "Choose a structure · combat stays live",
 		"selection_id": str(selected_plot["id"]),
@@ -587,7 +597,7 @@ func build_selected(kind: String) -> void:
 	build_at(str(selected_plot.get("id", "")), kind)
 
 func build_at(plot_id: String, kind: String) -> bool:
-	if not is_playing() or not Data.BUILDINGS.has(kind) or buildings.has(plot_id):
+	if not is_playing() or not hero.is_alive() or not Data.BUILDINGS.has(kind) or buildings.has(plot_id):
 		return false
 	var plot: Dictionary = _plot_by_id(plot_id)
 	if plot.is_empty() or hero.position.distance_to(plot["position"]) > Data.BUILD_RADIUS:
@@ -618,7 +628,7 @@ func upgrade_selected() -> void:
 	upgrade_at(str(selected_plot.get("id", "")))
 
 func upgrade_at(plot_id: String) -> bool:
-	if not is_playing() or not buildings.has(plot_id):
+	if not is_playing() or not hero.is_alive() or not buildings.has(plot_id):
 		return false
 	var building: Node3D = buildings[plot_id]
 	if building.tier >= building.maximum_level() or hero.position.distance_to(building.position) > Data.BUILD_RADIUS:
@@ -658,7 +668,7 @@ func smith_cost(id: String) -> int:
 		- (smith_tier - 1) * int(Data.SMITH_PRICING["tier_discount"]))
 
 func buy_smith_upgrade(id: String) -> void:
-	if not is_playing() or not Data.SMITH.has(id) or selected_plot.is_empty():
+	if not is_playing() or not hero.is_alive() or not Data.SMITH.has(id) or selected_plot.is_empty():
 		return
 	var smith: Node3D = buildings.get(selected_plot["id"])
 	if not is_instance_valid(smith) or smith.kind != "smith" or hero.position.distance_to(smith.position) > Data.BUILD_RADIUS:
@@ -844,6 +854,7 @@ func _update_hud() -> void:
 		if enemy.position.z > 1.0:
 			threats += 1
 	hud.update_state({"coins": coins, "keep_health": keep_health, "keep_max": keep_max,
+		"hero_health": hero.health, "hero_respawn": hero.respawn_remaining, "hero_protection": hero.protection_remaining,
 		"wave": maxi(1, wave_index + 1), "total_waves": wave_configs.size(), "wave_text": wave_text,
 		"wave_remaining": wave_remaining, "wave_total": wave_total, "wave_active": wave_active,
 		"kills": kills, "hero_level": hero.tier, "xp": hero.xp, "next_xp": hero.next_xp,

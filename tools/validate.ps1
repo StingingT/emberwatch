@@ -25,6 +25,7 @@ function Invoke-EngineCheck {
 }
 
 Invoke-EngineCheck -Name 'import' -EngineArguments @('--headless', '--editor', '--import', '--quit')
+Invoke-EngineCheck -Name 'hero_danger' -EngineArguments @('--headless', '--script', 'tests/check_hero_danger.gd', '--fixed-fps', '60', '--quit-after', '4000') -Expected 'HERO_DANGER_PASS:'
 Invoke-EngineCheck -Name 'sound' -EngineArguments @('--headless', '--audio-driver', 'Dummy', '--script', 'tests/check_sound.gd', '--quit-after', '4000') -Expected 'SOUND_CHECKS_PASS:'
 Invoke-EngineCheck -Name 'economy' -EngineArguments @('--headless', '--script', 'tests/check_economy.gd', '--fixed-fps', '60', '--quit-after', '4000') -Expected 'ECONOMY_CHECKS_PASS'
 Invoke-EngineCheck -Name 'combat' -EngineArguments @('--headless', '--script', 'tests/check_combat.gd', '--fixed-fps', '60', '--quit-after', '4000') -Expected 'COMBAT CHECKS PASSED:'

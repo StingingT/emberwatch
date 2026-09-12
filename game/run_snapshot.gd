@@ -101,8 +101,12 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 	if int(saved["kills"]) + saved["enemies"].size() != spawned:
 		return invalid("Spawned and surviving enemy counts do not agree.")
 	var hero: Variant = saved["hero"]
-	if not keys(hero, ["position", "tier", "xp", "ability_cooldown", "shot_remaining", "facing"]):
+	if not keys(hero, ["position", "tier", "xp", "ability_cooldown", "shot_remaining", "facing", "health", "respawn_remaining", "protection_remaining"]):
 		return invalid("Invalid archer fields.")
+	if not number(hero["health"], 0, float(Data.HERO["health"])) or not number(hero["respawn_remaining"], 0, float(Data.HERO["respawn_seconds"])) or not number(hero["protection_remaining"], 0, float(Data.HERO["protection_seconds"])):
+		return invalid("Invalid archer health or respawn timers.")
+	if (float(hero["health"]) == 0.0) != (float(hero["respawn_remaining"]) > 0.0):
+		return invalid("Archer life state and respawn timer disagree.")
 	var thresholds: Array = Data.HERO["xp_thresholds"]
 	# Rect2.grow/end and the runtime scalar clamp round differently at float32
 	# edges. Accept the real clamped position without moving it during restoration.
@@ -118,8 +122,10 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 		return invalid("Invalid archer XP or cooldowns.")
 	var enemy_ids: Dictionary = {}
 	for enemy: Variant in saved["enemies"]:
-		if not keys(enemy, ["id", "position", "kind", "health", "max_health", "route_index", "attack_remaining", "facing"]):
+		if not keys(enemy, ["id", "position", "kind", "health", "max_health", "route_index", "attack_remaining", "facing", "hero_windup", "hero_aim"]):
 			return invalid("Invalid enemy fields.")
+		if not number(enemy["hero_windup"], 0, float(Data.HERO_THREAT["windup"])) or not position(enemy["hero_aim"], bounds):
+			return invalid("Invalid enemy hero attack.")
 		if not integer(enemy["id"], 0, 511) or enemy_ids.has(int(enemy["id"])) or not enemy["kind"] is String or not Data.ENEMIES.has(enemy["kind"]):
 			return invalid("Invalid or duplicate enemy identity.")
 		enemy_ids[int(enemy["id"])] = true
@@ -181,7 +187,7 @@ static func fingerprint(mission: Dictionary) -> String:
 		spec.erase("name")
 		spec.erase("description")
 	return JSON.stringify(primitives({"mission_id": mission["id"], "level": level, "waves": waves,
-		"hero": Data.HERO, "enemies": Data.ENEMIES, "buildings": buildings, "smith": smith,
+		"hero": Data.HERO, "hero_threat": Data.HERO_THREAT, "enemies": Data.ENEMIES, "buildings": buildings, "smith": smith,
 		"smith_pricing": Data.SMITH_PRICING, "starting_coins": Data.STARTING_COINS,
 		"keep_health": Data.KEEP_HEALTH, "build_radius": Data.BUILD_RADIUS,
 		"preparation": Data.PREPARATION_TIME, "between_waves": Data.BETWEEN_WAVES,

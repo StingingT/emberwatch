@@ -65,9 +65,16 @@ func _run_scenario(active_player: bool) -> Dictionary:
 	_path.clear()
 	_rebuild_navigation()
 	var label: String = "ACTIVE" if active_player else "UNATTENDED"
+	var was_alive: bool = _game.hero.is_alive()
 	while _game.is_playing() and float(_game.elapsed) < TIME_LIMIT:
 		await physics_frame
 		var moved: float = _game.hero.position.distance_to(_previous_position)
+		# Respawn is an authored relocation, not an input-driven movement step.
+		if not was_alive and _game.hero.is_alive() and _game.hero.position.distance_to(_game.hero_respawn_position()) < 0.001:
+			moved = 0.0
+			_path.clear()
+			_think_remaining = 0.0
+		was_alive = _game.hero.is_alive()
 		_movement += moved
 		_max_step = maxf(_max_step, moved)
 		_previous_position = _game.hero.position

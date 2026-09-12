@@ -1,5 +1,11 @@
 # Current validation: recovery checkpoint
 
+## Hero danger integration
+
+The first Combat & Visual Identity integration adds 100 hero health, nearby enemy strikes with a 0.7-second marked wind-up, eight-second respawn and 1.5-second protection. Timings and reach are balance data. Headless hero-danger checks cover hit/dodge, pause, death without mission termination, blocked downed actions, restoration and protection. Actual rendering of `hero_attack_warning.png` and `hero_down.png` was reviewed. Existing economy/combat/UI/feedback/profile/run-store checks passed; actor snapshot tests were extended for the added combat fields and passed, as did recovery/continuation and Android routing. All six campaign missions remain legally winnable. The playthrough movement check excludes only a verified dead-to-alive transition at the authored respawn position, not arbitrary teleports.
+
+New enemy roles and abilities remain unimplemented, and no human combat-feel or phone validation is claimed. This source integration is newer than the 0.3.1 downloads. Existing older active battle snapshots have a different combat fingerprint and cannot be continued under the new rules; campaign results/settings retain their existing format.
+
 ## Tower coverage before construction
 
 Empty tower plots show the configured level-one range while selected. Constructed towers continue to show their current-tier range; support and wall plots do not show tower ranges. Resuming restores a range ring hidden by the paused selection update even if the selected plot has not changed. Economy checks passed 77 assertions, recovery checks passed 165, and the Compatibility-rendered `tower_plot_preview.png` was visually reviewed. This source follow-up is not part of the existing 0.3.1 APK/ZIP.

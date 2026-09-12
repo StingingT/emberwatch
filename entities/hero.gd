@@ -14,6 +14,26 @@ var damage: float = 8.0
 var attack_interval: float = 0.6
 var attack_range: float = 8.0
 var coin_radius: float = 2.5
+var health: float = 100.0
+var respawn_remaining: float = 0.0
+var protection_remaining: float = 0.0
+
+func is_alive() -> bool:
+	return health > 0.0
+
+func take_damage(amount: float) -> void:
+	if not game.is_playing() or not is_alive() or protection_remaining > 0.0 or amount <= 0.0:
+		return
+	health = maxf(0.0, health - amount)
+	game.play_sound("hit")
+	game.notify("Archer hit! %d health" % ceili(health), "danger")
+	if not is_alive():
+		respawn_remaining = float(_stats["respawn_seconds"])
+		move_input = Vector2.ZERO
+		_model.hide()
+		_level_ring.hide()
+		game.hud.reset_input()
+		game.notify("Archer down! Your defenses must hold.", "danger")
 
 var _stats: Dictionary = {}
 var _thresholds: Array = []
@@ -28,6 +48,7 @@ var _recoil: float = 0.0
 func setup(owner_game: Node, stats: Dictionary) -> void:
 	game = owner_game
 	_stats = stats.duplicate(true)
+	health = float(_stats["health"])
 	speed = float(_stats.get("speed", 6.0))
 	attack_range = float(_stats.get("range", 8.0))
 	coin_radius = float(_stats.get("coin_radius", 2.5))
@@ -46,6 +67,7 @@ func setup(owner_game: Node, stats: Dictionary) -> void:
 
 func capture_state() -> Dictionary:
 	return {"position": [position.x, position.y, position.z], "tier": tier, "xp": xp,
+		"health": health, "respawn_remaining": respawn_remaining, "protection_remaining": protection_remaining,
 		"ability_cooldown": ability_cooldown, "shot_remaining": _shot_remaining,
 		"facing": _model.rotation.y}
 
@@ -55,6 +77,10 @@ func restore_state(saved: Dictionary) -> void:
 	var at: Array = saved["position"]
 	position = Vector3(float(at[0]), float(at[1]), float(at[2]))
 	tier = int(saved["tier"])
+	health = float(saved["health"])
+	respawn_remaining = float(saved["respawn_remaining"])
+	protection_remaining = float(saved["protection_remaining"])
+	_model.visible = is_alive()
 	xp = int(saved["xp"])
 	_refresh_stats()
 	ability_cooldown = float(saved["ability_cooldown"])
@@ -71,6 +97,18 @@ func restore_state(saved: Dictionary) -> void:
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return
+	if not is_alive():
+		respawn_remaining = maxf(0.0, respawn_remaining - delta)
+		if respawn_remaining <= 0.0:
+			position = game.hero_respawn_position()
+			health = float(_stats["health"])
+			protection_remaining = float(_stats["protection_seconds"])
+			_model.show()
+			move_input = Vector2.ZERO
+			game.hud.reset_input()
+			game.notify("Archer returned — briefly protected", "success")
+		return
+	protection_remaining = maxf(0.0, protection_remaining - delta)
 	ability_cooldown = maxf(0.0, ability_cooldown - delta)
 	_shot_remaining = maxf(0.0, _shot_remaining - delta)
 	_recoil = maxf(0.0, _recoil - delta * 6.0)
@@ -121,7 +159,7 @@ func add_xp(amount: int) -> void:
 func use_ability() -> bool:
 	if not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return false
-	if tier < int(_stats.get("ability_unlock", 2)) or ability_cooldown > 0.0:
+	if not is_alive() or tier < int(_stats.get("ability_unlock", 2)) or ability_cooldown > 0.0:
 		return false
 	var volley_range: float = float(_stats.get("ability_range", attack_range + 2.0))
 	var targets: Array[Node3D] = game.call("enemies_in_range", global_position, volley_range)

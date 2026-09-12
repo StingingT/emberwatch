@@ -64,6 +64,8 @@ Automated tests establish damage/reward correctness and lifecycle regressions; t
 
 ## Implementation order
 
+First integration: hero health, local melee attack markers/wind-up, dodgeable strikes, death/countdown and clear-position respawn are implemented in source. Dead heroes cannot build, upgrade, use Volley or collect coins. The HUD shows health/countdown/protection. Existing snapshot fields were extended only for this combat state; changed combat fingerprints keep old checkpoints from being silently reinterpreted. Ranged enemies, hunters, level choices, ability variants and the visual overhaul remain outstanding. This is not milestone acceptance.
+
 1. Hero health, telegraphed enemy damage, death/respawn and the two enemy roles as one playable combat loop.
 2. Run-local choice UI and three distinct projectile/ability behaviors.
 3. Stronger building models, floating Smith bulbs and coordinated feedback/audio.

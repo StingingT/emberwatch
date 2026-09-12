@@ -3,6 +3,7 @@ extends RefCounted
 ## All gameplay balance is configured here, separately from simulation code.
 
 const HERO: Dictionary = {
+	"health": 100.0, "respawn_seconds": 8.0, "protection_seconds": 1.5,
 	"speed": 6.0, "damage": 12.0, "attack_interval": 0.65, "range": 8.0,
 	"xp_thresholds": [16, 28, 42, 58, 76], "damage_per_tier": 3.0,
 	"attack_speed_per_tier": 0.10, "ability_unlock": 2,
@@ -17,6 +18,7 @@ const ENEMIES: Dictionary = {
 	"brute": {"id": "brute", "health": 110.0, "speed": 1.25, "damage": 20.0,
 		"attack_interval": 1.5, "coins": 22, "xp": 10},
 }
+const HERO_THREAT: Dictionary = {"windup": 0.7, "reach": 2.0, "hit_radius": 1.2}
 const BUILDINGS: Dictionary = {
 	"tower": {"name": "Archer Tower", "category": "tower", "limit": 99, "max_level": 3,
 		"costs": [40, 65, 100], "health": [150.0, 230.0, 350.0],

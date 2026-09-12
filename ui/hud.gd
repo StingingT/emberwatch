@@ -458,6 +458,12 @@ func update_state(state: Dictionary) -> void:
 	_keep_label.text = "KEEP  %d / %d" % [ceili(health), int(maximum)]
 	_keep_bar.add_theme_stylebox_override("fill", _bar_style(Color("c9654c") if health / maximum < 0.3 else Color("9cbc6c")))
 	_hero_label.text = "ARCHER  ·  LV %d" % int(state.get("hero_level", 1))
+	if state.has("hero_health"):
+		_hero_label.text = "LV %d · HP %d" % [int(state.get("hero_level", 1)), ceili(float(state["hero_health"]))]
+		if float(state.get("hero_respawn", 0.0)) > 0.0:
+			_hero_label.text = "ARCHER RETURNS IN %ds" % ceili(float(state["hero_respawn"]))
+		elif float(state.get("hero_protection", 0.0)) > 0.0:
+			_hero_label.text += " · SHIELD"
 	var xp: int = int(state.get("xp", 0))
 	var next_xp: int = int(state.get("next_xp", 1))
 	_xp_label.text = "MAX LEVEL" if next_xp <= 0 else "%d / %d XP" % [xp, next_xp]

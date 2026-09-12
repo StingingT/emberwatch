@@ -89,7 +89,7 @@ func _check_hero() -> void:
 	source.ability_cooldown = 7.35
 	source._shot_remaining = 0.315
 	source._model.rotation.y = -1.23
-	var saved: Dictionary = _json_snapshot(source, ["position", "tier", "xp", "ability_cooldown", "shot_remaining", "facing"])
+	var saved: Dictionary = _json_snapshot(source, ["position", "tier", "xp", "ability_cooldown", "shot_remaining", "facing", "health", "respawn_remaining", "protection_remaining"])
 	var restored: Node3D = _add_actor(HeroScript)
 	restored.setup(_game, Data.HERO)
 	restored.move_input = Vector2.ONE
@@ -114,7 +114,7 @@ func _check_enemy() -> void:
 	source.route_index = 2
 	source._attack_remaining = 0.625
 	source._model.rotation.y = 0.73
-	var saved: Dictionary = _json_snapshot(source, ["position", "kind", "health", "max_health", "route_index", "attack_remaining", "facing"])
+	var saved: Dictionary = _json_snapshot(source, ["position", "kind", "health", "max_health", "route_index", "attack_remaining", "facing", "hero_windup", "hero_aim"])
 	var restored: Node3D = _add_actor(EnemyScript)
 	restored.setup(_game, stats, route)
 	restored.restore_state(saved)
