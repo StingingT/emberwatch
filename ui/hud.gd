@@ -549,7 +549,8 @@ func show_context(context: Dictionary) -> void:
 		var button: Button = _smith_buttons[index] if is_smith else _option_buttons[index]
 		button.text = "%s\n%d gold" % [label, cost]
 		if is_smith:
-			button.text = "%s\n%s\n%d gold" % [label, _wrap_text(str(option.get("description", "")), 16), cost]
+			var bulb_labels: Dictionary = {"ranged": "↑\nTowers\n+20% damage", "haste": "»\nTowers fire\n15% faster", "fortify": "◇\nWalls & Keep\n+20% health"}
+			button.text = "%s\n%d gold" % [bulb_labels[id], cost]
 		button.disabled = not bool(option.get("enabled", true))
 		button.tooltip_text = str(option.get("description", ""))
 		if is_smith:
@@ -620,7 +621,17 @@ func _build_game_ui() -> void:
 		var option := _button(_context_panel, "", 22)
 		option.pressed.connect(_on_option_pressed.bind(index))
 		_option_buttons.append(option)
-		var smith := _button(_game, "", 20, true)
+		var smith := _button(_game, "", 19, true)
+		var bulb_colors: Array[Color] = [Color("f5d17e"), Color("a9ddd5"), Color("d1c2ed")]
+		for mode: String in ["normal", "hover", "pressed", "disabled"]:
+			var paint: Color = bulb_colors[index]
+			if mode == "hover": paint = paint.lightened(0.12)
+			if mode == "pressed": paint = paint.darkened(0.18)
+			if mode == "disabled": paint = Color("244c3d")
+			var skin: StyleBoxFlat = _style(paint, CREAM if mode != "disabled" else Color("607664"), 100, 3)
+			skin.shadow_size = 6
+			skin.shadow_offset = Vector2(0, 5)
+			smith.add_theme_stylebox_override(mode, skin)
 		smith.pressed.connect(_on_smith_pressed.bind(index))
 		smith.hide()
 		_smith_buttons.append(smith)
@@ -728,14 +739,19 @@ func _layout_context() -> void:
 		var screen_at: Vector2 = _context.get("screen_position", _safe.get_center())
 		var gap: float = 10
 		var bulb_width: float = minf(180, (_safe.size.x - gap * (smith_count - 1)) / smith_count)
-		var bulb_height: float = 132
+		var bulb_height: float = bulb_width
 		var row_width: float = bulb_width * smith_count + gap * (smith_count - 1)
 		var x: float = clampf(screen_at.x - row_width * 0.5, _safe.position.x, _safe.end.x - row_width)
 		var min_y: float = _safe.position.y + 367
 		var max_y: float = maxf(min_y, _context_panel.position.y - bulb_height - 15)
-		var y: float = clampf(screen_at.y - bulb_height - 35, min_y, max_y)
+		var stacked: bool = max_y - min_y >= bulb_height + gap
+		var side_max: float = max_y - bulb_height - gap if stacked else max_y
+		var side_y: float = clampf(screen_at.y - bulb_height, min_y, side_max)
 		for index in range(smith_count):
-			_rect(_smith_buttons[index], x + index * (bulb_width + gap), y, bulb_width, bulb_height)
+			# Keep the forge and hero visible between the left bulb and right pair.
+			var slot: int = [0, 2, 2][index] if stacked else index
+			var y: float = side_y + (bulb_height + gap if stacked and index == 2 else 0.0)
+			_rect(_smith_buttons[index], x + slot * (bulb_width + gap), y, bulb_width, bulb_height)
 
 
 func _show_overlay(_mode: String) -> void:
