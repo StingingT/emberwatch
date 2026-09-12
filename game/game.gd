@@ -505,19 +505,25 @@ func _update_selection() -> void:
 		_selection.position = nearest["position"] + Vector3(0, 0.04, 0)
 	if changed:
 		_refresh_range_ring()
+	if is_instance_valid(_range_ring):
+		_range_ring.visible = true
 	hud.show_context(_context())
 
 func _refresh_range_ring() -> void:
 	if is_instance_valid(_range_ring):
 		_range_ring.queue_free()
 		_range_ring = null
-	if selected_plot.is_empty() or not buildings.has(selected_plot["id"]):
+	if selected_plot.is_empty():
 		return
-	var building: Node3D = buildings[selected_plot["id"]]
-	if building.kind == "tower":
-		_range_ring = Visuals.ring(float(Data.BUILDINGS["tower"]["range"][building.tier - 1]), Color(1.0, 0.91, 0.64, 0.28))
-		_range_ring.position = building.position + Vector3(0, 0.035, 0)
-		add_child(_range_ring)
+	var building: Node3D = buildings.get(selected_plot["id"])
+	if is_instance_valid(building) and building.kind != "tower":
+		return
+	if not is_instance_valid(building) and selected_plot["category"] != "tower":
+		return
+	var tier: int = building.tier if is_instance_valid(building) else 1
+	_range_ring = Visuals.ring(float(Data.BUILDINGS["tower"]["range"][tier - 1]), Color(1.0, 0.91, 0.64, 0.28))
+	_range_ring.position = selected_plot["position"] + Vector3(0, 0.035, 0)
+	add_child(_range_ring)
 
 func _context() -> Dictionary:
 	if selected_plot.is_empty() or not is_playing():

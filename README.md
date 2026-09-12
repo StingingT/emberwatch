@@ -17,6 +17,8 @@ Use **Godot 4.7 stable, standard edition**. Double-click **play_windows.cmd**, o
 
 Suggested first move: build the nearby Archer Tower for 40 gold, then head north toward incoming enemies. Walls buy time; Mine coins must be collected; the Smith strengthens towers and fortifications. Smith upgrades apply for the current run. Restart resets the run.
 
+Selected empty tower plots preview firing range before construction. Nearby upgrade panels explain the next tier's benefits before you spend gold.
+
 Mission cards explain the strategic variation. Sunscar has one support plot, so choose a Mine or Smith. Moonfen allows two Mines. Win with at least 40%/80% Keep health for two/three stars; any victory earns one. Replaying cannot reduce your best rating or time.
 
 After each battle, the results show battle time and remaining Keep health alongside waves, kills and collected gold.

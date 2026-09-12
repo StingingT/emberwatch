@@ -18,6 +18,7 @@ func _run() -> void:
 	await _capture("title")
 	game.start_run()
 	game.set_physics_process(false)
+	await _capture("tower_plot_preview")
 	game.coins = 2000
 	game.hero.position = Vector3(-6, 0, -1.5)
 	game.build_at("bend", "tower")

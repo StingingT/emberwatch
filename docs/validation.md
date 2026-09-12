@@ -1,5 +1,9 @@
 # Current validation: recovery checkpoint
 
+## Tower coverage before construction
+
+Empty tower plots show the configured level-one range while selected. Constructed towers continue to show their current-tier range; support and wall plots do not show tower ranges. Resuming restores a range ring hidden by the paused selection update even if the selected plot has not changed. Economy checks passed 77 assertions, recovery checks passed 165, and the Compatibility-rendered `tower_plot_preview.png` was visually reviewed. This source follow-up is not part of the existing 0.3.1 APK/ZIP.
+
 ## Live upgrade previews, after 0.3.1
 
 The nearby upgrade panel now previews next-tier tower arrow damage/range (including current Smith damage bonuses), mine gold per interval, wall health after full repair (including fortification), and the Smith's maximum per-purchase discount. Costs and purchase rules remain unchanged. The full headless regression wrapper passed with exit 0. The expanded economy suite then passed 74 checks, including real tower/mine offers, Smith discounts, damaged fortified walls, tower damage bonuses and capped buildings. Portrait captures for tower, wall, mine and Smith offers were visually reviewed (`upgrade_bend.png`, `upgrade_choke.png`, `upgrade_quarry.png`, `smith.png`). These source changes are newer than the packaged 0.3.1 APK and ZIP.
