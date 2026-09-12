@@ -72,3 +72,5 @@ First integration: hero health, local melee attack markers/wind-up, dodgeable st
 4. Tune the first three existing missions, then human playtest and reassess.
 
 Validate each change with targeted behavioral checks and actual rendering. Run broader regression checks at integration points, not repeatedly in place of gameplay work. Keep completed, implemented-but-unverified and outstanding requirements explicit.
+
+Hunter actor implementation: wolf-pelt silhouette with paired blades, bounded pursuit within 7 units of the hero and 5 units of its current route segment, and existing telegraphed melee. Barricades block pursuit. Targeted checks verify pursuit, leash refusal and abandoning a dead hero. It is not yet placed in campaign waves; rendered inspection and encounter tuning remain pending.

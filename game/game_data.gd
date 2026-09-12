@@ -11,6 +11,8 @@ const HERO: Dictionary = {
 	"ability_targets": 7, "ability_range": 11.0, "coin_radius": 3.3,
 }
 const ENEMIES: Dictionary = {
+	"hunter": {"id": "hunter", "health": 42.0, "speed": 3.6, "damage": 13.0,
+		"attack_interval": 1.4, "coins": 14, "xp": 7, "pursuit_range": 7.0, "route_leash": 5.0},
 	"goblin": {"id": "goblin", "health": 30.0, "speed": 2.0, "damage": 9.0,
 		"attack_interval": 1.2, "coins": 9, "xp": 4},
 	"scout": {"id": "scout", "health": 24.0, "speed": 3.1, "damage": 7.0,

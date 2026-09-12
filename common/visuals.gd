@@ -84,6 +84,13 @@ static func enemy(kind: String) -> Node3D:
 		Kit.part(parts, "box", Vector3(0.62, 0.09, 0.45), Vector3(0, 1.34, -0.06), WOOD_DARK)
 		if kind == "scout":
 			Kit.part(parts, "cone", Vector3(0.15, 0.35, 0.15), Vector3(0.09, 1.51, -0.02), RED_DARK, Vector3(0.3, 0, -0.25))
+	if kind == "hunter":
+		# Broad wolf pelt and paired long blades distinguish the pursuit role.
+		Kit.part(parts, "roof", Vector3(0.94, 0.82, 0.25), Vector3(0, 0.89, 0.26), STONE_DARK, Vector3(0, 0, PI))
+		Kit.part(parts, "ball", Vector3(0.80, 0.38, 0.64), Vector3(0, 1.36, 0), STONE_DARK)
+		for side: float in [-1.0, 1.0]:
+			Kit.part(parts, "cone", Vector3(0.23, 0.38, 0.22), Vector3(side * 0.28, 1.60, 0), STONE_LIGHT)
+			Kit.beam(parts, Vector3(side * 0.46, 0.65, -0.2), Vector3(side * 0.60, 0.75, -0.91), 0.13, IRON_LIGHT)
 	var root: Node3D = Kit.model("goblin_" + kind, parts, 0.42)
 	if brute:
 		root.scale = Vector3.ONE * 1.28

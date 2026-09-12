@@ -22,6 +22,20 @@ func _run() -> void:
 	game.wave_index = 0
 	game.wave_active = true
 	game.wave_cursor = 1
+	var hunter: Node3D = game.spawn_enemy("hunter")
+	hunter.set_physics_process(false)
+	hunter.position = Vector3(-3, 0, -6)
+	hunter.route_index = 4
+	game.hero.position = Vector3(-6, 0, -5)
+	var distance_before: float = hunter.position.distance_to(game.hero.position)
+	_check(hunter._hunt_hero(0.1) and hunter.position.distance_to(game.hero.position) < distance_before, "Hunter pursues nearby hero off the route")
+	game.hero.position = Vector3(-9, 0, -5)
+	_check(not hunter._hunt_hero(0.1), "Hunter refuses pursuit beyond the route leash")
+	game.hero.health = 0
+	_check(not hunter._hunt_hero(0.1), "Hunter abandons a dead hero")
+	game.hero.health = 100
+	hunter.queue_free()
+	game.hero.position = Vector3(-3, 0, -3)
 	var enemy: Node3D = game.spawn_enemy("goblin")
 	enemy.set_physics_process(false)
 	enemy.position = game.hero.position + Vector3(0, 0, -1)

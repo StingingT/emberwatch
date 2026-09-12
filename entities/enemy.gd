@@ -115,7 +115,7 @@ func _physics_process(delta: float) -> void:
 		if route_index >= _route.size():
 			_attack_keep()
 		else:
-			moving = _follow_route(delta)
+			moving = _hunt_hero(delta) or _follow_route(delta)
 	_walk_phase += delta * _speed * 6.0 if moving else 0.0
 	if is_instance_valid(_model):
 		_model.position.y = absf(sin(_walk_phase)) * 0.07 if moving else 0.0
@@ -143,6 +143,29 @@ func take_damage(amount: float, source: String) -> void:
 	game.call("on_enemy_killed", self, source, _coins, _xp)
 	_make_death_feedback()
 	queue_free()
+
+
+## Pursuit is constrained to the current route segment; route progress never advances off-trail.
+func _hunt_hero(delta: float) -> bool:
+	if kind != "hunter" or _route.is_empty():
+		return false
+	var target: Node3D = game.get_hero()
+	var stats: Dictionary = GameData.ENEMIES[kind]
+	if not target.is_alive() or position.distance_to(target.position) > float(stats["pursuit_range"]):
+		return false
+	var segment_end: int = clampi(route_index, 0, _route.size() - 1)
+	var anchor: Vector3 = Geometry3D.get_closest_point_to_segment(target.position, _route[maxi(0, segment_end - 1)], _route[segment_end])
+	if anchor.distance_to(target.position) > float(stats["route_leash"]):
+		return false
+	var offset: Vector3 = target.position - position
+	var direction: Vector3 = offset.normalized()
+	var destination: Vector3 = position + direction * minf(_speed * delta, maxf(0.0, offset.length() - 1.5))
+	var wall: Node3D = game.get_blocking_wall(position, destination + direction * 0.65)
+	if is_instance_valid(wall):
+		return false
+	position = destination
+	_face(direction)
+	return true
 
 
 func _follow_route(delta: float) -> bool:
