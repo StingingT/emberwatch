@@ -18,6 +18,16 @@ static func capture(game: Node) -> Dictionary:
 		actors.append(saved)
 	var arrows: Array = []
 	for arrow: Node3D in game._projectiles.get_children():
+		if arrow.has_method("snapshot_hits"):
+			if arrow.finished or arrow.is_queued_for_deletion():
+				continue
+			var piercing: Dictionary = arrow.capture_state()
+			piercing["hit_ids"] = []
+			for hit: Node3D in arrow.snapshot_hits():
+				if ids.has(hit):
+					piercing["hit_ids"].append(ids[hit])
+			arrows.append(piercing)
+			continue
 		var target: Node3D = arrow.snapshot_target()
 		if target == game.hero:
 			var hostile: Dictionary = arrow.capture_state()
@@ -143,6 +153,19 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 		if not position(enemy["position"], bounds.grow(1.0)) or not integer(enemy["route_index"], 0, level["route"].size()) or not number(enemy["attack_remaining"], 0, float(spec["attack_interval"]) + 0.001) or not number(enemy["facing"], -MAX_COUNT, MAX_COUNT):
 			return invalid("Invalid enemy route or attack timing.")
 	for arrow: Variant in saved["arrows"]:
+		if arrow is Dictionary and arrow.get("source") == "piercing":
+			if not keys(arrow, ["source", "position", "direction", "damage", "distance_left", "remaining_hits", "hit_ids"]):
+				return invalid("Invalid piercing arrow fields.")
+			if not position(arrow["position"], bounds.grow(15.0), 2.0) or not position(arrow["direction"], Rect2(-1, -1, 2, 2)) or not number(arrow["damage"], 0.000001, MAX_COUNT) or not number(arrow["distance_left"], 0.000001, 12.001) or not integer(arrow["remaining_hits"], 1, 8):
+				return invalid("Invalid piercing arrow motion.")
+			if absf(to_vector(arrow["direction"]).length() - 1.0) > 0.001 or not arrow["hit_ids"] is Array or arrow["hit_ids"].size() > 8:
+				return invalid("Invalid piercing arrow history.")
+			var seen: Dictionary = {}
+			for hit: Variant in arrow["hit_ids"]:
+				if not integer(hit, 0, 511) or not enemy_ids.has(int(hit)) or seen.has(int(hit)):
+					return invalid("Invalid piercing target history.")
+				seen[int(hit)] = true
+			continue
 		if arrow is Dictionary and arrow.get("source") == "enemy":
 			if not keys(arrow, ["target_id", "position", "destination", "damage", "source", "speed", "lifetime"]):
 				return invalid("Invalid hostile projectile fields.")

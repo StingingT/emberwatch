@@ -338,6 +338,15 @@ static func arrow() -> Node3D:
 	Kit.part(parts, "box", Vector3(0.22, 0.018, 0.18), Vector3(0, 0, 0.29), RED_LIGHT)
 	return Kit.model("arrow", parts)
 
+static func piercing_arrow() -> Node3D:
+	var parts: Array = []
+	Kit.beam(parts, Vector3(0, 0, 1.25), Vector3(0, 0, -0.50), 0.085, GOLD)
+	Kit.part(parts, "cone", Vector3(0.38, 0.65, 0.28), Vector3(0, 0, -0.60), CREAM, Vector3(-PI / 2, 0, 0))
+	for z: float in [0.25, 0.70, 1.15]:
+		Kit.beam(parts, Vector3(-0.24, 0, z + 0.18), Vector3(0, 0, z), 0.065, GOLD)
+		Kit.beam(parts, Vector3(0.24, 0, z + 0.18), Vector3(0, 0, z), 0.065, GOLD)
+	return Kit.model("piercing_spear", parts)
+
 static func enemy_bolt() -> Node3D:
 	var parts: Array = []
 	Kit.beam(parts, Vector3(0, 0, 0.45), Vector3(0, 0, -0.40), 0.14, WOOD_DARK)

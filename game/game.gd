@@ -6,6 +6,7 @@ const Visuals = preload("res://common/visuals.gd")
 const WorldScript = preload("res://levels/battlefield.gd")
 const HeroScript = preload("res://entities/hero.gd")
 const EnemyScript = preload("res://entities/enemy.gd")
+const PiercingArrowScript = preload("res://entities/piercing_arrow.gd")
 const EnemyBoltScript = preload("res://entities/enemy_bolt.gd")
 const ArrowScript = preload("res://entities/projectile.gd")
 const CoinScript = preload("res://entities/coin.gd")
@@ -429,6 +430,11 @@ func spawn_arrow(at: Vector3, target: Node3D, damage: float, source: String) -> 
 	var arrow: Node3D = ArrowScript.new()
 	_projectiles.add_child(arrow)
 	arrow.setup(self, at, target, damage, source)
+
+func fire_piercing_arrow(at: Vector3, direction: Vector3, damage: float, hits: int = 3) -> void:
+	var arrow: Node3D = PiercingArrowScript.new()
+	_projectiles.add_child(arrow)
+	arrow.setup(self, at, direction, damage, hits)
 
 func fire_enemy_bolt(at: Vector3, aim: Vector3, damage: float) -> void:
 	var bolt: Node3D = EnemyBoltScript.new()
@@ -1031,6 +1037,15 @@ func restore_run_snapshot(saved: Dictionary) -> bool:
 		coin.setup(self, Snapshot.to_vector(data["position"]), int(data["value"]))
 		coin.restore_state(data)
 	for data: Dictionary in snapshot["arrows"]:
+		if data["source"] == "piercing":
+			var piercing: Node3D = PiercingArrowScript.new()
+			_projectiles.add_child(piercing)
+			piercing.setup(self, Snapshot.to_vector(data["position"]), Snapshot.to_vector(data["direction"]), float(data["damage"]), int(data["remaining_hits"]))
+			var hits: Array[Node3D] = []
+			for id: int in data["hit_ids"]:
+				hits.append(restored_enemies[id])
+			piercing.restore_state(data, hits)
+			continue
 		if data["source"] == "enemy":
 			var bolt: Node3D = EnemyBoltScript.new()
 			_projectiles.add_child(bolt)
