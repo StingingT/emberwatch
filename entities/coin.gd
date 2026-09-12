@@ -44,7 +44,7 @@ func restore_state(saved: Dictionary) -> void:
 	_age = float(saved["age"])
 	_phase = float(saved["phase"])
 	_collected = false
-	var bounce: float = absf(sin(_age * 8.0)) * maxf(0.0, 1.0 - _age * 1.5) * 0.5
+	var bounce: float = absf(sin(_age * 8.0)) * maxf(0.0, 1.0 - _age * 1.5) * 1.0
 	_model.position.y = 0.34 + sin(_age * 3.5 + _phase) * 0.07 + bounce
 	_model.rotation.y = _age * 2.7
 	if game.reduced_motion():
@@ -57,7 +57,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_age += delta
 	_model.rotation.y += delta * 2.7
-	var bounce: float = absf(sin(_age * 8.0)) * maxf(0.0, 1.0 - _age * 1.5) * 0.5
+	var bounce: float = absf(sin(_age * 8.0)) * maxf(0.0, 1.0 - _age * 1.5) * 1.0
 	_model.position.y = 0.34 + sin(_age * 3.5 + _phase) * 0.07 + bounce
 	if game.reduced_motion():
 		_model.position.y = 0.34

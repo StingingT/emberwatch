@@ -641,6 +641,7 @@ func build_at(plot_id: String, kind: String) -> bool:
 	hero.position = clear_position
 	plot_views[plot_id].visible = false
 	play_sound("build")
+	feedback.construction(building.position)
 	notify("%s ready" % spec["name"], "success")
 	_refresh_range_ring()
 	_update_selection()
@@ -662,6 +663,7 @@ func upgrade_at(plot_id: String) -> bool:
 	coins -= cost
 	building.upgrade()
 	play_sound("build")
+	feedback.construction(building.position)
 	notify("%s · Level %d" % [Data.BUILDINGS[building.kind]["name"], building.tier], "success")
 	_refresh_range_ring()
 	_update_selection()

@@ -68,6 +68,7 @@ func _run() -> void:
 	game.wave_cursor = game.wave_configs[game.wave_index]["enemies"].size()
 	game.collect_coin(27, game.hero.position)
 	game.feedback.hit(Vector3(-3, 0, -10.0), true)
+	game.feedback.construction(game.buildings["bend"].position)
 	game.feedback._process(0.1)
 	game._update_hud()
 	await _capture("feedback")

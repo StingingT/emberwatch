@@ -9,6 +9,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var game: Node3D = GameScript.new()
+	game.persistent_profile = false
 	root.add_child(game)
 	game.start_run()
 	game.set_physics_process(false)
@@ -49,6 +50,16 @@ func _run() -> void:
 	game.start_run()
 	game.hero.set_physics_process(false)
 	_check(feedback.hits.is_empty() and feedback.pickups.is_empty(), "Restart removes feedback from the previous run")
+	game.hero.position = Vector3(3.2, 0, 1.4)
+	_check(game.build_at("watch", "tower") and feedback.hits[-1].get("construction", false), "Real construction creates completion sparks")
+	feedback._process(0.3)
+	_check(not feedback.hits.is_empty(), "Construction ring lasts beyond the short impact flash")
+	feedback._process(0.4)
+	_check(feedback.hits.is_empty(), "Construction effect expires without lingering")
+	game.change_setting("reduced_motion", true)
+	feedback.construction(Vector3.ZERO)
+	_check(feedback.hits.is_empty(), "Reduced motion suppresses construction sparks")
+	game.change_setting("reduced_motion", false)
 	# Progress includes enemies waiting to spawn, not just those already visible.
 	game.wave_index = 0
 	game.wave_active = true
