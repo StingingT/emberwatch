@@ -67,7 +67,7 @@ The first eleven suites total 725 assertions, including 9 Android Back-routing c
 
 ## Reference loop retained
 
-Portrait angled 3D, scrolling routes, move-and-auto-fire combat, real arrows, collectible gold, hero-only kill XP, active Volley, nearby live purchases, blocking/destructible walls, mines, Smith modifiers, three visible structure tiers and a vulnerable Keep remain covered. Campaign missions add route and plot strategies while preserving that loop. Previous construction-under-hero and held-purchase/input-interruption regressions remain covered by the expanded suites.
+Portrait angled 3D, scrolling routes, move-and-auto-fire combat, real arrows, collectible gold, hero damage XP, active Volley, nearby live purchases, blocking/destructible walls, mines, Smith modifiers, three visible structure tiers and a vulnerable Keep remain covered. Campaign missions add route and plot strategies while preserving that loop. Previous construction-under-hero and held-purchase/input-interruption regressions remain covered by the expanded suites.
 
 The implemented recovery contract is [run_recovery_plan.md](run_recovery_plan.md). The active roadmap is [campaign_plan.md](campaign_plan.md) and `PROJECT_PLAN.md`.
 
@@ -76,3 +76,5 @@ The implemented recovery contract is [run_recovery_plan.md](run_recovery_plan.md
 Human feedback on clarity, campaign pacing, economy, difficulty and enjoyment; further presentation/audio polish and release preparation remain. Passing this checkpoint does not finish the full-game goal.
 
 Mac import, signed iOS export/install, Android physical-device install, Android release signing, real iPhone 12-16 and Android multi-touch/safe areas, operating-system interruption/relaunch behavior, sustained frame time, memory and heat require native testing. These later or parallel checks do not block compatible desktop development. The iOS and Android presets are **0.3.0/build 3**, with placeholder signing identities. No native-phone validation, GitHub publication, TestFlight/Play Store/App Store release or exact-commercial fidelity is claimed.
+
+Current combat integration: hunters are introduced in Amberfield and Stonegate. Hero/Volley damage now grants proportional fractional XP immediately, capped at health removed; tower damage and killing blows add no bonus. The complete validation wrapper passed, including all six legal campaign wins. Targeted fractional-XP actor and interrupted-run round trips also passed. The hunter model was inspected in a rendered portrait encounter; human playtest acceptance is still pending. Existing 0.3.1 APKs do not contain these changes.

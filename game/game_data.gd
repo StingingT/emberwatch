@@ -3,7 +3,7 @@ extends RefCounted
 ## All gameplay balance is configured here, separately from simulation code.
 
 const HERO: Dictionary = {
-	"health": 100.0, "respawn_seconds": 8.0, "protection_seconds": 1.5,
+	"xp_rule": "damage_share", "health": 100.0, "respawn_seconds": 8.0, "protection_seconds": 1.5,
 	"speed": 6.0, "damage": 12.0, "attack_interval": 0.65, "range": 8.0,
 	"xp_thresholds": [16, 28, 42, 58, 76], "damage_per_tier": 3.0,
 	"attack_speed_per_tier": 0.10, "ability_unlock": 2,

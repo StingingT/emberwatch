@@ -34,6 +34,8 @@ func _run() -> void:
 	game.hero.health = 0
 	_check(not hunter._hunt_hero(0.1), "Hunter abandons a dead hero")
 	game.hero.health = 100
+	await _capture(game, "hunter_encounter")
+	game.enemies.erase(hunter)
 	hunter.queue_free()
 	game.hero.position = Vector3(-3, 0, -3)
 	var enemy: Node3D = game.spawn_enemy("goblin")
@@ -63,9 +65,10 @@ func _run() -> void:
 	game.drop_coin(game.hero.position, 10)
 	game._coins.get_child(0)._physics_process(1.0)
 	_check(game.coins == before, "Downed hero cannot collect nearby gold")
+	game.hero.add_xp(0.4)
 	var saved: Dictionary = game.capture_run_snapshot()
 	_check(game.validate_run_snapshot(saved)["ok"], "Checkpoint accepts valid downed combat state")
-	_check(game.restore_run_snapshot(saved) and not game.hero.is_alive(), "Restoration preserves death and remaining respawn time")
+	_check(game.restore_run_snapshot(saved) and not game.hero.is_alive() and is_equal_approx(game.hero.xp, 0.4), "Restoration preserves fractional XP, death and remaining respawn time")
 	game.hero.set_physics_process(false)
 	game.hero._physics_process(20)
 	_check(not game.hero.is_alive(), "Paused restoration cannot advance respawn")

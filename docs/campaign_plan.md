@@ -11,7 +11,7 @@ The user asked to continue finishing the game after the first playable was accep
 - Complete a mission to unlock the next. Replay unlocked missions and retain the best star rating and completion time. A win earns one star; keeping at least 40%/80% of maximum Keep health earns two/three.
 - Each battle starts fresh: gold, structures, hero XP and Smith effects are local to that run. Campaign unlocks and results persist between app sessions.
 - Mission selection states the tactical variation before battle. The sixth victory gives a campaign ending and keeps all missions replayable.
-- No forced waiting, paid gates, online services or changes to hero-only kill XP.
+- No forced waiting, paid gates, online services (XP now follows hero damage under the Combat & Visual Identity milestone).
 
 ## Saves and settings
 

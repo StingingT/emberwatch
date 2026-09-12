@@ -464,7 +464,7 @@ func update_state(state: Dictionary) -> void:
 			_hero_label.text = "ARCHER RETURNS IN %ds" % ceili(float(state["hero_respawn"]))
 		elif float(state.get("hero_protection", 0.0)) > 0.0:
 			_hero_label.text += " · SHIELD"
-	var xp: int = int(state.get("xp", 0))
+	var xp: float = float(state.get("xp", 0))
 	var next_xp: int = int(state.get("next_xp", 1))
 	_xp_label.text = "MAX LEVEL" if next_xp <= 0 else "%d / %d XP" % [xp, next_xp]
 	_xp_bar.value = 100.0 if next_xp <= 0 else 100.0 * float(xp) / next_xp

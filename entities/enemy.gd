@@ -132,7 +132,10 @@ func take_damage(amount: float, source: String) -> void:
 		return
 	if not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return
-	health = maxf(0.0, health - amount)
+	var actual_damage: float = minf(health, amount)
+	health = maxf(0.0, health - actual_damage)
+	if source == "hero":
+		game.on_enemy_damaged(actual_damage / max_health * float(_xp))
 	game.call("show_hit", global_position, health <= 0.0)
 	_hit_flash = 1.0
 	_update_health_bar()

@@ -429,14 +429,16 @@ func spawn_arrow(at: Vector3, target: Node3D, damage: float, source: String) -> 
 	_projectiles.add_child(arrow)
 	arrow.setup(self, at, target, damage, source)
 
-func on_enemy_killed(enemy: Node3D, source: String, reward: int, xp_reward: int) -> void:
+func on_enemy_damaged(xp_reward: float) -> void:
+	if is_playing() and is_instance_valid(hero):
+		hero.add_xp(xp_reward)
+
+func on_enemy_killed(enemy: Node3D, _source: String, reward: int, _xp_reward: int) -> void:
 	if not enemies.has(enemy):
 		return
 	enemies.erase(enemy)
 	kills += 1
 	drop_coin(enemy.global_position, reward)
-	if source == "hero" and is_instance_valid(hero):
-		hero.add_xp(xp_reward)
 	play_sound("hit")
 
 func drop_coin(at: Vector3, amount: int) -> void:
@@ -873,7 +875,7 @@ func _update_tutorial() -> void:
 		elif coins_collected == 0:
 			hint = "Walk near gold to collect it. Spend it on stronger defenses."
 		elif hero.tier < int(Data.HERO["ability_unlock"]):
-			hint = "Your archer's kills earn XP. Level 2 unlocks Volley."
+			hint = "Your archer's damage earns XP. Level 2 unlocks Volley."
 		elif not _used_volley:
 			hint = "Use Volley near a group of goblins. Tap the gold button or Space."
 	hud.show_hint(hint)

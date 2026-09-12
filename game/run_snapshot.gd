@@ -117,8 +117,10 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 	if hero_position.distance_squared_to(level["keep"]) < float(Data.FOOTPRINTS["keep_radius_squared"]):
 		return invalid("The archer cannot be restored inside the Keep.")
 	var tier: int = int(hero["tier"])
-	var max_xp: int = int(thresholds[tier - 1]) - 1 if tier <= thresholds.size() else 0
-	if not integer(hero["xp"], 0, max_xp) or not number(hero["ability_cooldown"], 0, float(Data.HERO["ability_cooldown"]) + 0.001) or not number(hero["shot_remaining"], 0, float(Data.HERO["attack_interval"]) + 0.001) or not number(hero["facing"], -MAX_COUNT, MAX_COUNT):
+	var max_xp: float = float(thresholds[tier - 1]) if tier <= thresholds.size() else 0.0
+	if tier <= thresholds.size() and number(hero["xp"], max_xp, MAX_COUNT):
+		return invalid("Unprocessed archer level-up.")
+	if not number(hero["xp"], 0, max_xp) or not number(hero["ability_cooldown"], 0, float(Data.HERO["ability_cooldown"]) + 0.001) or not number(hero["shot_remaining"], 0, float(Data.HERO["attack_interval"]) + 0.001) or not number(hero["facing"], -MAX_COUNT, MAX_COUNT):
 		return invalid("Invalid archer XP or cooldowns.")
 	var enemy_ids: Dictionary = {}
 	for enemy: Variant in saved["enemies"]:

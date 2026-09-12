@@ -29,7 +29,7 @@ Initial tuning proposal: eight-second respawn, 1.5-second protection. Store thes
 
 Offer three clearly different combat choices at level-up milestones, with brief descriptions of what changes. Initial design: Multishot for wider coverage, Volley for a stronger active burst, Piercing for enemies lined up along the route. Subsequent choices strengthen a selected approach or add another. Choices are local to the current run, not persistent progression.
 
-Pause the battle while choosing and discard held movement/purchase inputs when opening or closing the choice panel. Ordinary construction remains live. Preserve the existing hero-only kill XP rule.
+Pause the battle while choosing and discard held movement/purchase inputs when opening or closing the choice panel. Ordinary construction remains live. Hero XP is earned from actual hero damage, proportional to the fraction of enemy maximum health removed. Fractional XP accumulates immediately; tower damage and kill credit award no hero XP. Overkill is capped to remaining health. This replaces the earlier kill-only rule at the user's request.
 
 Acceptance: each choice changes actual combat behavior, not just a percentage label. Multishot visibly sends several arrows; Volley has a distinct burst and cooldown; Piercing travels through multiple enemies without repeatedly damaging the same enemy on successive frames. Shapes, motion and trajectories distinguish them without relying on color alone. No choice may become a free unavoidable replacement for every other choice.
 
@@ -74,3 +74,5 @@ First integration: hero health, local melee attack markers/wind-up, dodgeable st
 Validate each change with targeted behavioral checks and actual rendering. Run broader regression checks at integration points, not repeatedly in place of gameplay work. Keep completed, implemented-but-unverified and outstanding requirements explicit.
 
 Hunter actor implementation: wolf-pelt silhouette with paired blades, bounded pursuit within 7 units of the hero and 5 units of its current route segment, and existing telegraphed melee. Barricades block pursuit. Targeted checks verify pursuit, leash refusal and abandoning a dead hero. It is not yet placed in campaign waves; rendered inspection and encounter tuning remain pending.
+
+Hunters now appear in Amberfield waves 1/3/5 and Stonegate waves 2/4, replacing some scouts. The first encounter is a single hunter with a slower spawn cadence. All six missions passed the legal campaign simulation before the XP change; the portrait hunter model was rendered and inspected.

@@ -6,7 +6,7 @@ const Visuals := preload("res://common/visuals.gd")
 var game: Node
 var move_input: Vector2 = Vector2.ZERO
 var tier: int = 1
-var xp: int = 0
+var xp: float = 0.0
 var next_xp: int = 16
 var ability_cooldown: float = 0.0
 var speed: float = 6.0
@@ -81,7 +81,7 @@ func restore_state(saved: Dictionary) -> void:
 	respawn_remaining = float(saved["respawn_remaining"])
 	protection_remaining = float(saved["protection_remaining"])
 	_model.visible = is_alive()
-	xp = int(saved["xp"])
+	xp = float(saved["xp"])
 	_refresh_stats()
 	ability_cooldown = float(saved["ability_cooldown"])
 	_shot_remaining = float(saved["shot_remaining"])
@@ -135,13 +135,13 @@ func _physics_process(delta: float) -> void:
 	_update_level_flash(delta)
 
 
-func add_xp(amount: int) -> void:
+func add_xp(amount: float) -> void:
 	if amount <= 0 or next_xp <= 0:
 		return
 	xp += amount
 	var previous_tier: int = tier
-	while next_xp > 0 and xp >= next_xp:
-		xp -= next_xp
+	while next_xp > 0 and xp + 0.000000001 >= next_xp:
+		xp = maxf(0.0, xp - next_xp)
 		tier += 1
 		_refresh_stats()
 	if tier == previous_tier:

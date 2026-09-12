@@ -35,14 +35,14 @@ static func _amberfield() -> Dictionary:
 		_plot("workshop", "support", 5.9, 0.8),
 	]
 	var waves: Array[Dictionary] = [
-		_wave("Tracks in the wheat", 10, 3, 0, 0.95, 1.04),
+		_wave("Wolf pelts — dodge their strikes", 10, 2, 0, 1.15, 1.04, 1),
 		_wave("Orchard raiders", 12, 5, 1, 0.82, 1.08),
-		_wave("Running the bend", 14, 7, 2, 0.70, 1.12),
+		_wave("Hunters at the bend", 14, 5, 2, 0.70, 1.12, 2),
 		_wave("The harvest horde", 16, 9, 4, 0.60, 1.18),
-		_wave("Hold the homesteads", 20, 12, 6, 0.50, 1.24),
+		_wave("Hold the homesteads", 20, 9, 6, 0.50, 1.24, 3),
 	]
 	return _mission("amberfield", "Amberfield Road",
-		"Six tower sites, one wall. Cover the long road and intercept fast scouts.",
+		"Wolf-pelt hunters pursue you near the road. Dodge their marked strikes and lead them into tower fire.",
 		route, plots, Vector3(-1.8, 0, -19.3), waves, 110,
 		_palette("a1aa69", "d9bf84", "aeb57b", "c1ccb0"))
 
@@ -63,9 +63,9 @@ static func _stonegate() -> Dictionary:
 	]
 	var waves: Array[Dictionary] = [
 		_wave("At the first gate", 10, 3, 1, 0.95, 1.08),
-		_wave("Iron on the road", 12, 4, 2, 0.82, 1.12),
+		_wave("Hunters behind the iron", 12, 2, 2, 0.82, 1.12, 2),
 		_wave("Hammering the walls", 14, 5, 3, 0.74, 1.16),
-		_wave("A breach in the line", 14, 7, 4, 0.66, 1.20),
+		_wave("A breach in the line", 14, 4, 4, 0.66, 1.20, 3),
 		_wave("The heavy column", 17, 8, 6, 0.56, 1.25),
 		_wave("Three gates stand", 18, 10, 7, 0.50, 1.30),
 	]
@@ -181,11 +181,11 @@ static func _palette(grass: String, trail: String, shoulder: String, sky: String
 		"sky": Color(sky)}
 
 static func _wave(name: String, goblins: int, scouts: int, brutes: int,
-		interval: float, health_scale: float) -> Dictionary:
+		interval: float, health_scale: float, hunters: int = 0) -> Dictionary:
 	var enemies: Array[String] = []
-	var counts: Array[int] = [goblins, scouts, brutes]
-	var kinds: Array[String] = ["goblin", "scout", "brute"]
-	while counts[0] + counts[1] + counts[2] > 0:
+	var counts: Array[int] = [goblins, scouts, brutes, hunters]
+	var kinds: Array[String] = ["goblin", "scout", "brute", "hunter"]
+	while counts[0] + counts[1] + counts[2] + counts[3] > 0:
 		for index: int in range(kinds.size()):
 			if counts[index] > 0:
 				enemies.append(kinds[index])
