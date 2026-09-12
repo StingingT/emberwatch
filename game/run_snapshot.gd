@@ -19,6 +19,11 @@ static func capture(game: Node) -> Dictionary:
 	var arrows: Array = []
 	for arrow: Node3D in game._projectiles.get_children():
 		var target: Node3D = arrow.snapshot_target()
+		if target == game.hero:
+			var hostile: Dictionary = arrow.capture_state()
+			hostile["target_id"] = -1
+			arrows.append(hostile)
+			continue
 		if target == null or not ids.has(target):
 			continue
 		var saved: Dictionary = arrow.capture_state()
@@ -138,6 +143,12 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 		if not position(enemy["position"], bounds.grow(1.0)) or not integer(enemy["route_index"], 0, level["route"].size()) or not number(enemy["attack_remaining"], 0, float(spec["attack_interval"]) + 0.001) or not number(enemy["facing"], -MAX_COUNT, MAX_COUNT):
 			return invalid("Invalid enemy route or attack timing.")
 	for arrow: Variant in saved["arrows"]:
+		if arrow is Dictionary and arrow.get("source") == "enemy":
+			if not keys(arrow, ["target_id", "position", "destination", "damage", "source", "speed", "lifetime"]):
+				return invalid("Invalid hostile projectile fields.")
+			if not integer(arrow["target_id"], -1, -1) or not position(arrow["position"], bounds.grow(1.0), 2.0) or not position(arrow["destination"], bounds, 2.0) or not number(arrow["damage"], 0.000001, MAX_COUNT) or not number(arrow["speed"], 9.0, 9.0) or not number(arrow["lifetime"], 0.0, 2.001):
+				return invalid("Invalid hostile projectile motion.")
+			continue
 		if not keys(arrow, ["target_id", "position", "damage", "source", "speed", "lifetime"]):
 			return invalid("Invalid projectile fields.")
 		if not integer(arrow["target_id"], 0, 511) or not enemy_ids.has(int(arrow["target_id"])) or not arrow["source"] is String or arrow["source"] not in ["hero", "tower"]:

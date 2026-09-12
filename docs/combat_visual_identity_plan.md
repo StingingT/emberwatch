@@ -64,7 +64,7 @@ Automated tests establish damage/reward correctness and lifecycle regressions; t
 
 ## Implementation order
 
-First integration: hero health, local melee attack markers/wind-up, dodgeable strikes, death/countdown and clear-position respawn are implemented in source. Dead heroes cannot build, upgrade, use Volley or collect coins. The HUD shows health/countdown/protection. Existing snapshot fields were extended only for this combat state; changed combat fingerprints keep old checkpoints from being silently reinterpreted. Ranged enemies, hunters, level choices, ability variants and the visual overhaul remain outstanding. This is not milestone acceptance.
+First integration: hero health, local melee attack markers/wind-up, dodgeable strikes, death/countdown and clear-position respawn are implemented in source. Dead heroes cannot build, upgrade, use Volley or collect coins. The HUD shows health/countdown/protection. Existing snapshot fields were extended only for this combat state; changed combat fingerprints keep old checkpoints from being silently reinterpreted. Ranged enemies and hunters are now implemented and introduced in missions 2-3. Level choices, ability variants and the visual overhaul remain outstanding. This is not milestone acceptance.
 
 1. Hero health, telegraphed enemy damage, death/respawn and the two enemy roles as one playable combat loop.
 2. Run-local choice UI and three distinct projectile/ability behaviors.
@@ -76,3 +76,5 @@ Validate each change with targeted behavioral checks and actual rendering. Run b
 Hunter actor implementation: wolf-pelt silhouette with paired blades, bounded pursuit within 7 units of the hero and 5 units of its current route segment, and existing telegraphed melee. Barricades block pursuit. Targeted checks verify pursuit, leash refusal and abandoning a dead hero. It is not yet placed in campaign waves; rendered inspection and encounter tuning remain pending.
 
 Hunters now appear in Amberfield waves 1/3/5 and Stonegate waves 2/4, replacing some scouts. The first encounter is a single hunter with a slower spawn cadence. All six missions passed the legal campaign simulation before the XP change; the portrait hunter model was rendered and inspected.
+
+Ranged integration: crossbow goblins wind up inside seven units, then fire a visible fixed-destination bolt at the hero position at release. Bolts use swept collision, survive launcher death, and freeze during pause. The existing projectile snapshot list now preserves hostile bolt position and destination. Ten targeted headless checks and a rendered portrait capture passed; human dodge/readability acceptance remains pending.

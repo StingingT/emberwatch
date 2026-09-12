@@ -397,7 +397,7 @@ func show_how_to_play() -> void:
 	_guide_step(146, "01", "Move and shoot", "Drag the stick to move. Your archer automatically fires at nearby enemies.")
 	_guide_step(253, "02", "Collect the gold", "Walk near dropped gold to collect it. Mine income also waits on the ground.")
 	_guide_step(360, "03", "Build your defenses", "Stand near a plot, then tap a structure or upgrade. The battle stays live.")
-	_guide_step(467, "04", "Strengthen your archer", "Your hero's finishing blows earn XP. Tower kills still drop gold.")
+	_guide_step(467, "04", "Strengthen your archer", "Every hero hit earns XP. Tower kills still drop gold.")
 	_guide_step(574, "05", "Unleash Volley", "Reach hero level 2, then tap Volley near enemies. It recharges after use.")
 	_guide_step(681, "06", "Protect the Keep", "Stop the waves before they destroy the Keep. Win missions to advance the campaign.")
 	var back := _button(_overlay_card, "Back", 25, true)
@@ -485,7 +485,7 @@ func update_state(state: Dictionary) -> void:
 	_ability_button.disabled = not unlocked or cooldown > 0.0
 	if not unlocked:
 		_ability_button.text = "VOLLEY\nLevel 2"
-		_ability_hint.text = "Hero kills earn XP"
+		_ability_hint.text = "Hero damage earns XP"
 	elif cooldown > 0.0:
 		_ability_button.text = "VOLLEY\n%ds" % ceili(cooldown)
 		_ability_hint.text = "Recharging"
@@ -589,7 +589,7 @@ func _build_game_ui() -> void:
 	_movement_hint.add_theme_constant_override("shadow_offset_y", 2)
 	_ability_button = _button(_game, "VOLLEY\nLevel 2", 27, true)
 	_ability_button.pressed.connect(func() -> void: ability_requested.emit())
-	_ability_hint = _label(_game, "Hero kills earn XP", 17, CREAM)
+	_ability_hint = _label(_game, "Hero damage earns XP", 17, CREAM)
 	_ability_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ability_hint.add_theme_color_override("font_shadow_color", INK)
 	_ability_hint.add_theme_constant_override("shadow_offset_y", 2)

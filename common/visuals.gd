@@ -84,6 +84,11 @@ static func enemy(kind: String) -> Node3D:
 		Kit.part(parts, "box", Vector3(0.62, 0.09, 0.45), Vector3(0, 1.34, -0.06), WOOD_DARK)
 		if kind == "scout":
 			Kit.part(parts, "cone", Vector3(0.15, 0.35, 0.15), Vector3(0.09, 1.51, -0.02), RED_DARK, Vector3(0.3, 0, -0.25))
+	if kind == "ranger":
+		# Wide crossbow and tall quiver make the ranged role legible by shape.
+		Kit.beam(parts, Vector3(-0.65, 0.85, -0.5), Vector3(0.65, 0.85, -0.5), 0.15, WOOD_LIGHT)
+		Kit.beam(parts, Vector3(0, 0.85, -0.15), Vector3(0, 0.85, -0.85), 0.18, IRON)
+		Kit.part(parts, "cylinder", Vector3(0.30, 0.95, 0.30), Vector3(0, 1.06, 0.37), WOOD)
 	if kind == "hunter":
 		# Broad wolf pelt and paired long blades distinguish the pursuit role.
 		Kit.part(parts, "roof", Vector3(0.94, 0.82, 0.25), Vector3(0, 0.89, 0.26), STONE_DARK, Vector3(0, 0, PI))
@@ -332,6 +337,14 @@ static func arrow() -> Node3D:
 	Kit.part(parts, "cone", Vector3(0.12, 0.24, 0.10), Vector3(0, 0, -0.42), IRON_LIGHT, Vector3(-PI / 2, 0, 0))
 	Kit.part(parts, "box", Vector3(0.22, 0.018, 0.18), Vector3(0, 0, 0.29), RED_LIGHT)
 	return Kit.model("arrow", parts)
+
+static func enemy_bolt() -> Node3D:
+	var parts: Array = []
+	Kit.beam(parts, Vector3(0, 0, 0.45), Vector3(0, 0, -0.40), 0.14, WOOD_DARK)
+	Kit.part(parts, "cone", Vector3(0.32, 0.36, 0.28), Vector3(0, 0, -0.5), GOLD, Vector3(-PI / 2, 0, 0))
+	for turn: float in [0.0, PI / 2]:
+		Kit.part(parts, "box", Vector3(0.5, 0.06, 0.3), Vector3(0, 0, 0.32), Color("ff7954"), Vector3(0, 0, turn))
+	return Kit.model("hostile_crossbow_bolt", parts)
 
 static func ring(radius: float, color: Color) -> Node3D:
 	var root := Node3D.new()

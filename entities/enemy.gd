@@ -35,13 +35,17 @@ func _attack_hero(delta: float) -> bool:
 		if hero_windup <= 0.0:
 			_hero_warning.hide()
 			_attack_remaining = _attack_interval
-			if target.is_alive() and target.position.distance_to(hero_aim) <= float(GameData.HERO_THREAT["hit_radius"]):
+			if kind == "ranger":
+				if target.is_alive() and position.distance_to(target.position) <= float(GameData.ENEMIES[kind]["range"]):
+					game.fire_enemy_bolt(position + Vector3(0, 0.85, 0), target.position + Vector3(0, 0.85, 0), _damage)
+			elif target.is_alive() and target.position.distance_to(hero_aim) <= float(GameData.HERO_THREAT["hit_radius"]):
 				target.take_damage(_damage)
 		return true
-	if target.is_alive() and _attack_remaining <= 0.0 and position.distance_to(target.position) <= float(GameData.HERO_THREAT["reach"]):
+	var reach: float = float(GameData.ENEMIES[kind]["range"]) if kind == "ranger" else float(GameData.HERO_THREAT["reach"])
+	if target.is_alive() and _attack_remaining <= 0.0 and position.distance_to(target.position) <= reach:
 		hero_aim = target.position
 		hero_windup = float(GameData.HERO_THREAT["windup"])
-		_hero_warning.global_position = hero_aim + Vector3(0, 0.07, 0)
+		_hero_warning.global_position = (position if kind == "ranger" else hero_aim) + Vector3(0, 0.07, 0)
 		_hero_warning.show()
 		_face(hero_aim - position)
 		return true
@@ -90,7 +94,7 @@ func restore_state(saved: Dictionary) -> void:
 	hero_windup = float(saved["hero_windup"])
 	var aim: Array = saved["hero_aim"]
 	hero_aim = Vector3(float(aim[0]), float(aim[1]), float(aim[2]))
-	_hero_warning.global_position = hero_aim + Vector3(0, 0.07, 0)
+	_hero_warning.global_position = (position if kind == "ranger" else hero_aim) + Vector3(0, 0.07, 0)
 	_hero_warning.visible = hero_windup > 0.0
 	dead = false
 	_walk_phase = 0.0

@@ -6,6 +6,7 @@ const Visuals = preload("res://common/visuals.gd")
 const WorldScript = preload("res://levels/battlefield.gd")
 const HeroScript = preload("res://entities/hero.gd")
 const EnemyScript = preload("res://entities/enemy.gd")
+const EnemyBoltScript = preload("res://entities/enemy_bolt.gd")
 const ArrowScript = preload("res://entities/projectile.gd")
 const CoinScript = preload("res://entities/coin.gd")
 const BuildingScript = preload("res://game/building.gd")
@@ -428,6 +429,12 @@ func spawn_arrow(at: Vector3, target: Node3D, damage: float, source: String) -> 
 	var arrow: Node3D = ArrowScript.new()
 	_projectiles.add_child(arrow)
 	arrow.setup(self, at, target, damage, source)
+
+func fire_enemy_bolt(at: Vector3, aim: Vector3, damage: float) -> void:
+	var bolt: Node3D = EnemyBoltScript.new()
+	_projectiles.add_child(bolt)
+	bolt.setup(self, at, aim, damage)
+	play_sound("shoot")
 
 func on_enemy_damaged(xp_reward: float) -> void:
 	if is_playing() and is_instance_valid(hero):
@@ -1024,6 +1031,12 @@ func restore_run_snapshot(saved: Dictionary) -> bool:
 		coin.setup(self, Snapshot.to_vector(data["position"]), int(data["value"]))
 		coin.restore_state(data)
 	for data: Dictionary in snapshot["arrows"]:
+		if data["source"] == "enemy":
+			var bolt: Node3D = EnemyBoltScript.new()
+			_projectiles.add_child(bolt)
+			bolt.setup(self, Snapshot.to_vector(data["position"]), Snapshot.to_vector(data["destination"]), float(data["damage"]))
+			bolt.restore_state(data)
+			continue
 		var arrow: Node3D = ArrowScript.new()
 		_projectiles.add_child(arrow)
 		arrow.setup(self, Snapshot.to_vector(data["position"]), restored_enemies[int(data["target_id"])], float(data["damage"]), str(data["source"]), float(data["speed"]))
