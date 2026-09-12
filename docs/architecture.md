@@ -4,6 +4,8 @@ Working title only. User authorized implementation on 2026-09-08. Godot 4.7 stab
 
 ## Active scope and decisions
 
+**Current authority:** the user has promoted [Combat & Visual Identity Pass](combat_visual_identity_plan.md). Its combat, enemy, ability and visual requirements supersede the earlier no-hero-death restriction and campaign-expansion direction below. Additional missions, save/recovery features, settings, monetization, equipment and meta progression are on HOLD. The following actor interfaces describe the current implementation baseline and will be extended for this milestone, not treated as a reason to defer it.
+
 The first playable has passed acceptance. The current user goal is to continue finishing the game. `docs/campaign_plan.md` promotes a six-mission campaign, versioned local profile, onboarding and settings into active scope and defines their integration interfaces. Earlier initial-slice restrictions below describe the accepted baseline; this promotion supersedes their hold on campaign work.
 
 CONTINUE: implement the reference's full first playable loop, then validate it before campaign expansion. Portrait 720 x 1280 design canvas, angled orthographic camera, original simplified 3D. Joystick or WASD movement, auto-target/fire while moving, nearby construction, Space/touch Volley. Purchases happen in live combat. Fixed enemy route; walls at designated route checkpoints are attacked until destroyed. Only hero finishing blows grant XP. Physical coins collect within a magnet radius. No paid assets or online services.

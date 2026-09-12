@@ -1,5 +1,7 @@
 # Campaign completion milestone
 
+Historical campaign implementation plan. The active milestone is now [Combat & Visual Identity Pass](combat_visual_identity_plan.md). Keep the existing six missions; tune the first two to three for the new combat and human playtest. Additional missions and persistence expansion are on HOLD.
+
 The user asked to continue finishing the game after the first playable was accepted. The architect promotes the roadmap's campaign, local saves, onboarding and settings into active implementation. The six-mission structure is the current design decision; it does not change the original combat/building loop or claim store-release completion.
 
 ## Playable campaign

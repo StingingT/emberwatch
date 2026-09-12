@@ -1,6 +1,12 @@
 # Mobile tower-defense game — working plan
 
-Updated: 2026-09-08
+Updated: 2026-09-12
+
+## Active milestone: Combat & Visual Identity Pass
+
+The user's next milestone is defined in [docs/combat_visual_identity_plan.md](docs/combat_visual_identity_plan.md): hero health/death/respawn, three meaningful level-up choices with distinct abilities, ranged and hero-hunting enemies, stronger building tiers, floating Smith bulbs, dramatic readable feedback, and human playtesting of the first two to three missions. Stay with Godot. Prioritize combat feel and visual identity over infrastructure.
+
+HOLD additional missions, save/recovery expansion, settings, monetization, equipment and meta progression until this milestone passes. Earlier milestone descriptions below are historical context, not authorization to bypass this HOLD.
 
 ## Confirmed by the user
 
