@@ -10,23 +10,57 @@ const MUTED := Color("706758")
 var game: Node
 var hud: CanvasLayer
 var _wave_button: Button
+var _wave_wait_panel: Panel
+var _wave_countdown: Label
+var _waiting_wave_index: int = -2
 
 func setup(owner_game: Node, owner_hud: CanvasLayer) -> void:
 	game = owner_game
 	hud = owner_hud
-	_wave_button = hud._button(hud._game, "Start next wave", 23)
+	# Passive countdown and optional action are separate controls. The view never
+	# advances, pauses or resets the wave timer; game.gd owns automatic progression.
+	_wave_wait_panel = hud._panel(hud._game, PAPER)
+	_wave_wait_panel.name = "WaveCountdownPanel"
+	_wave_wait_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wave_wait_panel.add_theme_stylebox_override("panel", _style(PAPER))
+	_wave_countdown = hud._label(_wave_wait_panel, "", 21, INK)
+	_wave_countdown.name = "AutomaticWaveCountdown"
+	_wave_countdown.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wave_countdown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_wave_button = hud._button(_wave_wait_panel, "Start now", 21)
 	_wave_button.name = "StartNextWave"
+	_wave_button.tooltip_text = "Optional: skip the wait. The next wave starts automatically."
 	_wave_button.pressed.connect(game.start_next_wave_now)
 	_flat_button(_wave_button, RED)
+	_wave_wait_panel.hide()
 	_wave_button.hide()
 
 func update_wave_button() -> void:
 	if not is_instance_valid(_wave_button):
 		return
-	_wave_button.visible = game.is_playing() and not game.wave_active and game.enemies.is_empty()
-	_wave_button.position = hud._wave_panel.position
-	_wave_button.size = hud._wave_panel.size
-	_wave_button.text = "Wave %d  /  START NOW" % (game.wave_index + 2)
+	var next_index: int = game.wave_index + 1
+	var waiting: bool = (game.is_playing() and not game.wave_active
+		and game.enemies.is_empty() and next_index >= 0
+		and next_index < game.wave_configs.size())
+	# An expiring countdown or a pause must release any held purchase-style touch.
+	# It must not survive until another wave's shortcut appears.
+	if not waiting or next_index != _waiting_wave_index:
+		if _wave_button.has_method("reset_touch"):
+			_wave_button.reset_touch()
+	_waiting_wave_index = next_index if waiting else -2
+	_wave_wait_panel.visible = waiting
+	_wave_button.visible = waiting
+	_wave_button.disabled = not waiting or game.wave_timer <= 0.0
+	if not waiting:
+		return
+	_wave_wait_panel.position = hud._wave_panel.position
+	_wave_wait_panel.size = hud._wave_panel.size
+	var width: float = _wave_wait_panel.size.x
+	var height: float = _wave_wait_panel.size.y
+	var button_width: float = minf(132.0, width * 0.43)
+	hud._rect(_wave_countdown, 12, 6, width - button_width - 36, height - 12)
+	hud._rect(_wave_button, width - button_width - 8, 6, button_width, height - 12)
+	_wave_countdown.text = "Auto in %ds\nWave %d" % [maxi(0, ceili(game.wave_timer)), next_index + 1]
 
 func _page(mode: String, title: String, height: float = 880) -> void:
 	hud._show_overlay(mode)

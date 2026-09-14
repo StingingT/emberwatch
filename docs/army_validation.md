@@ -53,3 +53,12 @@ the new suite explicitly loads army_game.gd. Test both rather than only the old 
 - Play the first three missions without ads at zero and early permanent training;
   tune the provisional rewards, gates and difficulty from observed results.
 - Physical Android/iPhone performance and touch acceptance remain separate.
+
+## Automatic-wave follow-up
+
+Read [wave_pacing.md](wave_pacing.md) for the user's clarified automatic-start
+contract, the hidden-countdown finding and the new production-scene regression.
+Also run `tests/check_wave_pacing.gd` with `--fixed-fps 60 --quit-after 60000` and
+require `WAVE_PACING_OK`. This suite has been added but not executed here. Only
+source-preservation, layout-arithmetic and passive-timer static checks were run;
+the reported runtime stall has not yet been reproduced or proven resolved.
