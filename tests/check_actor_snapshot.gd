@@ -32,6 +32,9 @@ class SnapshotGame extends Node3D:
 		events.append("arrow")
 	func show_hit(_at: Vector3, _dead: bool) -> void:
 		events.append("hit")
+	func on_enemy_damaged(_xp: float) -> void:
+		pass
+
 	func on_enemy_killed(_enemy: Node3D, _source: String, _coins: int, _xp: int) -> void:
 		events.append("kill")
 	func on_building_destroyed(_building: Node3D) -> void:
@@ -84,19 +87,19 @@ func _check_hero() -> void:
 	source.setup(_game, Data.HERO)
 	source.position = Vector3(-2.125, 0, -9.75)
 	source.tier = 3
-	source.xp = 11
+	source.xp = 11.75
 	source._refresh_stats()
 	source.ability_cooldown = 7.35
 	source._shot_remaining = 0.315
 	source._model.rotation.y = -1.23
-	var saved: Dictionary = _json_snapshot(source, ["position", "tier", "xp", "ability_cooldown", "shot_remaining", "facing"])
+	var saved: Dictionary = _json_snapshot(source, ["position", "tier", "xp", "choices", "ability_cooldown", "shot_remaining", "facing", "health", "respawn_remaining", "protection_remaining"])
 	var restored: Node3D = _add_actor(HeroScript)
 	restored.setup(_game, Data.HERO)
 	restored.move_input = Vector2.ONE
 	restored._level_flash = 1.0
 	restored.restore_state(saved)
 	_check(_equal(saved, restored.capture_state()), "hero round trip preserves XP, facing and exact cooldowns")
-	_check(restored.tier == 3 and restored.xp == 11 and restored.next_xp == 42, "hero XP restores without replaying level gains")
+	_check(restored.tier == 3 and restored.xp == 11.75 and restored.next_xp == 42, "hero XP restores without replaying level gains")
 	_check(is_equal_approx(restored.damage, 18.0) and is_equal_approx(restored.attack_interval, 0.65 / 1.2), "hero damage and attack interval derive from configured tier")
 	_check(restored._model.scale.is_equal_approx(Vector3.ONE * 1.07), "hero tier size is restored immediately")
 	_check(restored.move_input == Vector2.ZERO and restored._level_flash == 0.0 and not restored._level_ring.visible, "hero restores without stale movement or level feedback")
@@ -114,7 +117,7 @@ func _check_enemy() -> void:
 	source.route_index = 2
 	source._attack_remaining = 0.625
 	source._model.rotation.y = 0.73
-	var saved: Dictionary = _json_snapshot(source, ["position", "kind", "health", "max_health", "route_index", "attack_remaining", "facing"])
+	var saved: Dictionary = _json_snapshot(source, ["position", "kind", "health", "max_health", "route_index", "attack_remaining", "facing", "hero_windup", "hero_aim"])
 	var restored: Node3D = _add_actor(EnemyScript)
 	restored.setup(_game, stats, route)
 	restored.restore_state(saved)

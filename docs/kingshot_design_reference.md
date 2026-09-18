@@ -1,3 +1,5 @@
+> Current override: hero XP now comes from actual hero damage, not killing blows. See combat_visual_identity_plan.md. The original reference below is retained for context.
+
 # Kingshot-Style Commercial Remake --- Main Architect Instructions
 
 ## 1. Purpose

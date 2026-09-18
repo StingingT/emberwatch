@@ -25,6 +25,14 @@ func hit(at: Vector3, lethal: bool) -> void:
 	hits.append({"at": at + Vector3(0, 0.9, 0), "age": 0.0, "lethal": lethal})
 	queue_redraw()
 
+func construction(at: Vector3) -> void:
+	if not game.is_playing() or game.reduced_motion():
+		return
+	if hits.size() >= MAX_HITS:
+		hits.pop_front()
+	hits.append({"at": at + Vector3(0, 0.4, 0), "age": 0.0, "lethal": false, "construction": true, "lifetime": 0.65})
+	queue_redraw()
+
 func pickup(at: Vector3, amount: int) -> void:
 	if amount <= 0 or not game.is_playing():
 		return
@@ -59,7 +67,7 @@ func _process(delta: float) -> void:
 func _age_entries(entries: Array[Dictionary], delta: float, lifetime: float) -> void:
 	for index: int in range(entries.size() - 1, -1, -1):
 		entries[index]["age"] += delta
-		if float(entries[index]["age"]) >= lifetime:
+		if float(entries[index]["age"]) >= float(entries[index].get("lifetime", lifetime)):
 			entries.remove_at(index)
 
 func _draw() -> void:
@@ -73,11 +81,27 @@ func _draw() -> void:
 		var center: Vector2 = camera.unproject_position(at)
 		if not view_rect.has_point(center):
 			continue
-		var progress: float = float(entry["age"]) / 0.24
+		var progress: float = float(entry["age"]) / float(entry.get("lifetime", 0.24))
+		if bool(entry.get("construction", false)):
+			var radius: float = lerpf(15.0, 68.0, progress)
+			var paint := Color(GOLD, 1.0 - progress)
+			draw_arc(center, radius, 0, TAU, 32, paint, 3.0, true)
+			for spark: int in range(8):
+				var offset: Vector2 = Vector2.from_angle(float(spark) * TAU / 8) * radius
+				offset.y -= sin(progress * PI) * 22.0
+				draw_rect(Rect2(center + offset - Vector2.ONE * 3, Vector2.ONE * 6), paint)
+			continue
 		var lethal: bool = entry["lethal"]
 		var color: Color = GOLD if lethal else Color("fff7db")
 		color.a = 1.0 - progress
 		var radius: float = lerpf(5.0, 25.0 if lethal else 17.0, progress)
+		if lethal:
+			draw_arc(center, radius * 0.75, 0, TAU, 24, color, 2.0, true)
+			for shard: int in range(5):
+				var outward: Vector2 = Vector2.from_angle(TAU * float(shard) / 5.0)
+				var tip: Vector2 = center + outward * radius * 1.5
+				var side: Vector2 = outward.orthogonal() * 3.0 * (1.0 - progress)
+				draw_colored_polygon(PackedVector2Array([tip, tip - outward * 8 + side, tip - outward * 8 - side]), color)
 		for ray: int in range(6):
 			var direction: Vector2 = Vector2.from_angle(TAU * float(ray) / 6.0 + 0.25)
 			draw_line(center + direction * radius * 0.5, center + direction * radius, color, 3.0, true)
@@ -89,6 +113,11 @@ func _draw() -> void:
 		var center: Vector2 = camera.unproject_position(at) - Vector2(0, rise)
 		if not view_rect.has_point(center):
 			continue
+		if not game.reduced_motion() and float(entry["age"]) < 0.45:
+			var spread: float = float(entry["age"]) / 0.45
+			for spark: int in range(4):
+				var offset: Vector2 = Vector2.from_angle(float(spark) * TAU / 4.0 + 0.4) * lerpf(12, 36, spread)
+				draw_circle(center + offset, 3.0 * (1.0 - spread), Color(GOLD, 1.0 - spread))
 		var label: String = "+%d gold" % int(entry["amount"])
 		var width: float = _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 25).x
 		var alpha: float = clampf((0.95 - float(entry["age"])) / 0.3, 0.0, 1.0)

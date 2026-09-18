@@ -2,6 +2,7 @@ class_name GameHUD
 extends CanvasLayer
 ## Presentation only. The composition root remains the authority for run state.
 
+signal hero_choice_requested(id: String)
 signal play_requested
 signal continue_requested
 signal restart_requested
@@ -148,6 +149,8 @@ func handle_back() -> bool:
 	if not is_instance_valid(_overlay) or not _overlay.visible:
 		return false
 	match _overlay_mode:
+		"hero_choice":
+			return true
 		"settings", "help":
 			_return_from_auxiliary()
 			return true
@@ -227,6 +230,23 @@ func show_game() -> void:
 	_layout_overlay()
 
 
+func show_hero_choices(ranks: Dictionary) -> void:
+	_show_overlay("hero_choice")
+	_overlay_card_size = Vector2(596, 780)
+	_center_label(_overlay_card, "LEVEL UP", 22, 35, 35, GOLD)
+	_center_label(_overlay_card, "Shape your archer", 40, 90, 65, CREAM)
+	_center_label(_overlay_card, "Choose one. Battle is paused.", 23, 165, 40, MUTED)
+	var ids: Array[String] = ["multishot", "volley", "piercing"]
+	var names: Array[String] = ["MULTISHOT", "VOLLEY", "PIERCING"]
+	var details: Array[String] = ["2 more enemies per shot\nExtra arrows deal 55% damage", "Active burst: +2 targets\nand +20% base damage", "Straight arrows pierce 3 enemies\n85% damage; +1 target per rank"]
+	for index: int in range(3):
+		var id: String = ids[index]
+		var button := _button(_overlay_card, "%s  %d\n%s" % [names[index], int(ranks[id]) + 1, details[index]], 24, true)
+		button.name = "Choice_" + id
+		_rect(button, 40, 238 + index * 158, 516, 132)
+		button.pressed.connect(func() -> void: hero_choice_requested.emit(id))
+	_layout_overlay()
+
 func show_pause() -> void:
 	_show_overlay("pause")
 	_overlay_card_size = Vector2(596, 658)
@@ -267,9 +287,13 @@ func show_result(won: bool, summary: Dictionary) -> void:
 	if summary.has("stars"):
 		_center_label(_overlay_card, _stars(int(summary["stars"])), 28, 320, 33, GOLD)
 	_rule(_overlay_card, 55, 359, 486)
-	_result_stat(390, "Waves", "%d / %d" % [int(summary.get("wave", 0)), int(summary.get("total_waves", 0))])
-	_result_stat(445, "Goblins defeated", str(summary.get("kills", 0)))
-	_result_stat(500, "Gold collected", str(summary.get("coins", 0)))
+	_result_stat(376, "Waves", "%d / %d" % [int(summary.get("wave", 0)), int(summary.get("total_waves", 0))])
+	_result_stat(415, "Goblins defeated", str(summary.get("kills", 0)))
+	_result_stat(454, "Gold collected", str(summary.get("coins", 0)))
+	var seconds: int = maxi(0, int(summary.get("elapsed", 0.0)))
+	_result_stat(493, "Battle time", "%d:%02d" % [int(seconds / 60.0), seconds % 60])
+	var health_percent: int = int(floor(clampf(float(summary.get("keep_health", 0.0)) / maxf(1.0, float(summary.get("keep_max", 1.0))), 0.0, 1.0) * 100.0))
+	_result_stat(532, "Keep remaining", "%d%%" % health_percent)
 	if has_next:
 		var next := _button(_overlay_card, "NEXT MISSION", 28, true)
 		_rect(next, 46, 585, 504, 76)
@@ -302,6 +326,12 @@ func show_campaign(missions: Array[Dictionary]) -> void:
 		_mission_buttons[id] = card
 		var number := _label(card, "%02d" % (index + 1), 25, GOLD if unlocked else MUTED)
 		_rect(number, 16, 12, 48, 37)
+		if unlocked and float(mission.get("best_time", 0.0)) > 0.0:
+			var seconds: int = int(mission["best_time"])
+			var record := _label(card, "BEST\n%d:%02d" % [int(seconds / 60.0), seconds % 60], 16, GOLD)
+			record.name = "BestTime"
+			record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			_rect(record, 8, 53, 61, 48)
 		var title := _label(card, str(mission.get("name", "Mission %d" % (index + 1))), 24, CREAM if unlocked else MUTED)
 		title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		title.clip_text = true
@@ -387,7 +417,7 @@ func show_how_to_play() -> void:
 	_guide_step(146, "01", "Move and shoot", "Drag the stick to move. Your archer automatically fires at nearby enemies.")
 	_guide_step(253, "02", "Collect the gold", "Walk near dropped gold to collect it. Mine income also waits on the ground.")
 	_guide_step(360, "03", "Build your defenses", "Stand near a plot, then tap a structure or upgrade. The battle stays live.")
-	_guide_step(467, "04", "Strengthen your archer", "Your hero's finishing blows earn XP. Tower kills still drop gold.")
+	_guide_step(467, "04", "Strengthen your archer", "Every hero hit earns XP. Tower kills still drop gold.")
 	_guide_step(574, "05", "Unleash Volley", "Reach hero level 2, then tap Volley near enemies. It recharges after use.")
 	_guide_step(681, "06", "Protect the Keep", "Stop the waves before they destroy the Keep. Win missions to advance the campaign.")
 	var back := _button(_overlay_card, "Back", 25, true)
@@ -448,7 +478,13 @@ func update_state(state: Dictionary) -> void:
 	_keep_label.text = "KEEP  %d / %d" % [ceili(health), int(maximum)]
 	_keep_bar.add_theme_stylebox_override("fill", _bar_style(Color("c9654c") if health / maximum < 0.3 else Color("9cbc6c")))
 	_hero_label.text = "ARCHER  ·  LV %d" % int(state.get("hero_level", 1))
-	var xp: int = int(state.get("xp", 0))
+	if state.has("hero_health"):
+		_hero_label.text = "LV %d · HP %d" % [int(state.get("hero_level", 1)), ceili(float(state["hero_health"]))]
+		if float(state.get("hero_respawn", 0.0)) > 0.0:
+			_hero_label.text = "ARCHER RETURNS IN %ds" % ceili(float(state["hero_respawn"]))
+		elif float(state.get("hero_protection", 0.0)) > 0.0:
+			_hero_label.text += " · SHIELD"
+	var xp: float = float(state.get("xp", 0))
 	var next_xp: int = int(state.get("next_xp", 1))
 	_xp_label.text = "MAX LEVEL" if next_xp <= 0 else "%d / %d XP" % [xp, next_xp]
 	_xp_bar.value = 100.0 if next_xp <= 0 else 100.0 * float(xp) / next_xp
@@ -469,7 +505,7 @@ func update_state(state: Dictionary) -> void:
 	_ability_button.disabled = not unlocked or cooldown > 0.0
 	if not unlocked:
 		_ability_button.text = "VOLLEY\nLevel 2"
-		_ability_hint.text = "Hero kills earn XP"
+		_ability_hint.text = "Hero damage earns XP"
 	elif cooldown > 0.0:
 		_ability_button.text = "VOLLEY\n%ds" % ceili(cooldown)
 		_ability_hint.text = "Recharging"
@@ -513,7 +549,8 @@ func show_context(context: Dictionary) -> void:
 		var button: Button = _smith_buttons[index] if is_smith else _option_buttons[index]
 		button.text = "%s\n%d gold" % [label, cost]
 		if is_smith:
-			button.text = "%s\n%s\n%d gold" % [label, _wrap_text(str(option.get("description", "")), 16), cost]
+			var bulb_labels: Dictionary = {"ranged": "↑\nTowers\n+20% damage", "haste": "»\nTowers fire\n15% faster", "fortify": "◇\nWalls & Keep\n+20% health"}
+			button.text = "%s\n%d gold" % [bulb_labels[id], cost]
 		button.disabled = not bool(option.get("enabled", true))
 		button.tooltip_text = str(option.get("description", ""))
 		if is_smith:
@@ -573,7 +610,7 @@ func _build_game_ui() -> void:
 	_movement_hint.add_theme_constant_override("shadow_offset_y", 2)
 	_ability_button = _button(_game, "VOLLEY\nLevel 2", 27, true)
 	_ability_button.pressed.connect(func() -> void: ability_requested.emit())
-	_ability_hint = _label(_game, "Hero kills earn XP", 17, CREAM)
+	_ability_hint = _label(_game, "Hero damage earns XP", 17, CREAM)
 	_ability_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ability_hint.add_theme_color_override("font_shadow_color", INK)
 	_ability_hint.add_theme_constant_override("shadow_offset_y", 2)
@@ -584,7 +621,17 @@ func _build_game_ui() -> void:
 		var option := _button(_context_panel, "", 22)
 		option.pressed.connect(_on_option_pressed.bind(index))
 		_option_buttons.append(option)
-		var smith := _button(_game, "", 20, true)
+		var smith := _button(_game, "", 19, true)
+		var bulb_colors: Array[Color] = [Color("f5d17e"), Color("a9ddd5"), Color("d1c2ed")]
+		for mode: String in ["normal", "hover", "pressed", "disabled"]:
+			var paint: Color = bulb_colors[index]
+			if mode == "hover": paint = paint.lightened(0.12)
+			if mode == "pressed": paint = paint.darkened(0.18)
+			if mode == "disabled": paint = Color("244c3d")
+			var skin: StyleBoxFlat = _style(paint, CREAM if mode != "disabled" else Color("607664"), 100, 3)
+			skin.shadow_size = 6
+			skin.shadow_offset = Vector2(0, 5)
+			smith.add_theme_stylebox_override(mode, skin)
 		smith.pressed.connect(_on_smith_pressed.bind(index))
 		smith.hide()
 		_smith_buttons.append(smith)
@@ -692,14 +739,19 @@ func _layout_context() -> void:
 		var screen_at: Vector2 = _context.get("screen_position", _safe.get_center())
 		var gap: float = 10
 		var bulb_width: float = minf(180, (_safe.size.x - gap * (smith_count - 1)) / smith_count)
-		var bulb_height: float = 132
+		var bulb_height: float = bulb_width
 		var row_width: float = bulb_width * smith_count + gap * (smith_count - 1)
 		var x: float = clampf(screen_at.x - row_width * 0.5, _safe.position.x, _safe.end.x - row_width)
 		var min_y: float = _safe.position.y + 367
 		var max_y: float = maxf(min_y, _context_panel.position.y - bulb_height - 15)
-		var y: float = clampf(screen_at.y - bulb_height - 35, min_y, max_y)
+		var stacked: bool = max_y - min_y >= bulb_height + gap
+		var side_max: float = max_y - bulb_height - gap if stacked else max_y
+		var side_y: float = clampf(screen_at.y - bulb_height, min_y, side_max)
 		for index in range(smith_count):
-			_rect(_smith_buttons[index], x + index * (bulb_width + gap), y, bulb_width, bulb_height)
+			# Keep the forge and hero visible between the left bulb and right pair.
+			var slot: int = [0, 2, 2][index] if stacked else index
+			var y: float = side_y + (bulb_height + gap if stacked and index == 2 else 0.0)
+			_rect(_smith_buttons[index], x + slot * (bulb_width + gap), y, bulb_width, bulb_height)
 
 
 func _show_overlay(_mode: String) -> void:

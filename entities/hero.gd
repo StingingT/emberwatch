@@ -6,7 +6,8 @@ const Visuals := preload("res://common/visuals.gd")
 var game: Node
 var move_input: Vector2 = Vector2.ZERO
 var tier: int = 1
-var xp: int = 0
+var xp: float = 0.0
+var choices: Dictionary = {"multishot": 0, "volley": 0, "piercing": 0}
 var next_xp: int = 16
 var ability_cooldown: float = 0.0
 var speed: float = 6.0
@@ -14,6 +15,26 @@ var damage: float = 8.0
 var attack_interval: float = 0.6
 var attack_range: float = 8.0
 var coin_radius: float = 2.5
+var health: float = 100.0
+var respawn_remaining: float = 0.0
+var protection_remaining: float = 0.0
+
+func is_alive() -> bool:
+	return health > 0.0
+
+func take_damage(amount: float) -> void:
+	if not game.is_playing() or not is_alive() or protection_remaining > 0.0 or amount <= 0.0:
+		return
+	health = maxf(0.0, health - amount)
+	game.play_sound("hit")
+	game.notify("Archer hit! %d health" % ceili(health), "danger")
+	if not is_alive():
+		respawn_remaining = float(_stats["respawn_seconds"])
+		move_input = Vector2.ZERO
+		_model.hide()
+		_level_ring.hide()
+		game.hud.reset_input()
+		game.notify("Archer down! Your defenses must hold.", "danger")
 
 var _stats: Dictionary = {}
 var _thresholds: Array = []
@@ -28,6 +49,7 @@ var _recoil: float = 0.0
 func setup(owner_game: Node, stats: Dictionary) -> void:
 	game = owner_game
 	_stats = stats.duplicate(true)
+	health = float(_stats["health"])
 	speed = float(_stats.get("speed", 6.0))
 	attack_range = float(_stats.get("range", 8.0))
 	coin_radius = float(_stats.get("coin_radius", 2.5))
@@ -46,6 +68,7 @@ func setup(owner_game: Node, stats: Dictionary) -> void:
 
 func capture_state() -> Dictionary:
 	return {"position": [position.x, position.y, position.z], "tier": tier, "xp": xp,
+		"choices": choices.duplicate(), "health": health, "respawn_remaining": respawn_remaining, "protection_remaining": protection_remaining,
 		"ability_cooldown": ability_cooldown, "shot_remaining": _shot_remaining,
 		"facing": _model.rotation.y}
 
@@ -55,7 +78,12 @@ func restore_state(saved: Dictionary) -> void:
 	var at: Array = saved["position"]
 	position = Vector3(float(at[0]), float(at[1]), float(at[2]))
 	tier = int(saved["tier"])
-	xp = int(saved["xp"])
+	choices = saved["choices"].duplicate()
+	health = float(saved["health"])
+	respawn_remaining = float(saved["respawn_remaining"])
+	protection_remaining = float(saved["protection_remaining"])
+	_model.visible = is_alive()
+	xp = float(saved["xp"])
 	_refresh_stats()
 	ability_cooldown = float(saved["ability_cooldown"])
 	_shot_remaining = float(saved["shot_remaining"])
@@ -71,6 +99,18 @@ func restore_state(saved: Dictionary) -> void:
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return
+	if not is_alive():
+		respawn_remaining = maxf(0.0, respawn_remaining - delta)
+		if respawn_remaining <= 0.0:
+			position = game.hero_respawn_position()
+			health = float(_stats["health"])
+			protection_remaining = float(_stats["protection_seconds"])
+			_model.show()
+			move_input = Vector2.ZERO
+			game.hud.reset_input()
+			game.notify("Archer returned — briefly protected", "success")
+		return
+	protection_remaining = maxf(0.0, protection_remaining - delta)
 	ability_cooldown = maxf(0.0, ability_cooldown - delta)
 	_shot_remaining = maxf(0.0, _shot_remaining - delta)
 	_recoil = maxf(0.0, _recoil - delta * 6.0)
@@ -97,13 +137,13 @@ func _physics_process(delta: float) -> void:
 	_update_level_flash(delta)
 
 
-func add_xp(amount: int) -> void:
+func add_xp(amount: float) -> void:
 	if amount <= 0 or next_xp <= 0:
 		return
 	xp += amount
 	var previous_tier: int = tier
-	while next_xp > 0 and xp >= next_xp:
-		xp -= next_xp
+	while next_xp > 0 and xp + 0.000000001 >= next_xp:
+		xp = maxf(0.0, xp - next_xp)
 		tier += 1
 		_refresh_stats()
 	if tier == previous_tier:
@@ -118,17 +158,27 @@ func add_xp(amount: int) -> void:
 		game.call("play_sound", "level_up")
 
 
+func pending_choices() -> int:
+	return maxi(0, tier - 1 - int(choices["multishot"]) - int(choices["volley"]) - int(choices["piercing"]))
+
+func choose_upgrade(id: String) -> bool:
+	if not choices.has(id) or pending_choices() <= 0:
+		return false
+	choices[id] = int(choices[id]) + 1
+	return true
+
 func use_ability() -> bool:
 	if not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return false
-	if tier < int(_stats.get("ability_unlock", 2)) or ability_cooldown > 0.0:
+	if not is_alive() or tier < int(_stats.get("ability_unlock", 2)) or ability_cooldown > 0.0:
 		return false
 	var volley_range: float = float(_stats.get("ability_range", attack_range + 2.0))
 	var targets: Array[Node3D] = game.call("enemies_in_range", global_position, volley_range)
-	var limit: int = int(_stats.get("ability_targets", 6))
+	var limit: int = int(_stats.get("ability_targets", 6)) + int(choices["volley"]) * 2
 	var fired: int = 0
 	var volley_damage: float = float(_stats.get("ability_damage", 20.0))
 	volley_damage += float(_stats.get("damage_per_tier", 3.0)) * float(tier - 1)
+	volley_damage *= 1.0 + 0.20 * int(choices["volley"])
 	for target: Node3D in targets:
 		if fired >= limit:
 			break
@@ -165,7 +215,20 @@ func _fire(target: Node3D, amount: float) -> void:
 	direction.y = 0.0
 	if direction.length_squared() > 0.0001:
 		_model.rotation.y = atan2(-direction.x, -direction.z)
-	game.call("spawn_arrow", global_position + Vector3(0.0, 1.0, 0.0), target, amount, "hero")
+	var origin: Vector3 = global_position + Vector3(0, 1.0, 0)
+	if int(choices["piercing"]) > 0:
+		game.fire_piercing_arrow(origin, direction, amount * 0.85, 2 + int(choices["piercing"]))
+	else:
+		game.spawn_arrow(origin, target, amount, "hero")
+	var extra: int = 2 * int(choices["multishot"])
+	for other: Node3D in game.enemies_in_range(global_position, attack_range):
+		if extra <= 0:
+			break
+		if other == target or not _valid_target(other):
+			continue
+		var side: float = -0.4 if extra % 2 == 0 else 0.4
+		game.spawn_arrow(origin + Vector3(side, 0.1, 0), other, amount * 0.55, "hero")
+		extra -= 1
 	game.call("play_sound", "shoot")
 	_recoil = 1.0
 

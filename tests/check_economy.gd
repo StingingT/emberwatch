@@ -16,10 +16,18 @@ func _run() -> void:
 	game.hero.set_physics_process(false)
 	_check(game.state == "playing" and game.coins == 100, "fresh run starts with configured economy")
 	game.hero.position = Vector3(-6, 0, -1.7)
+	game._update_selection()
+	_check(is_instance_valid(game._range_ring) and game._range_ring.visible and game.buildings.is_empty(), "Empty tower plot previews coverage before any purchase")
+	game.pause_run()
+	game._update_selection()
+	_check(not game._range_ring.visible, "Paused play hides the tower coverage preview")
+	game.resume_run()
+	_check(game._range_ring.visible, "Resuming restores coverage without requiring a different plot selection")
 	_check(not game.build_at("bend", "mine"), "invalid plot category rejected")
 	_check(game.coins == 100, "invalid build spends no gold")
 	_check(game.build_at("bend", "tower"), "nearby valid tower builds")
 	_check(game.coins == 60 and game.building_count("tower") == 1, "construction spends exactly once")
+	_check(game._context()["subtitle"] == "Arrow damage 10 → 19 · Range 7.5 → 8.5", "Tower offer: " + str(game._context()["subtitle"]))
 	_check(not game.build_at("bend", "tower") and game.coins == 60, "occupied plot cannot charge twice")
 	_check(not game.upgrade_at("bend"), "insufficient gold cannot upgrade")
 	game.coins = 300
@@ -33,6 +41,7 @@ func _run() -> void:
 	game.hero.position = Vector3(-6, 0, 2.5)
 	_check(game.build_at("quarry", "mine"), "Gold Mine builds on support plot")
 	var mine: Node3D = game.buildings["quarry"]
+	_check(game._context()["subtitle"] == "Gold 10 / 7s → 18 / 7s", "Mine offer: " + str(game._context()["subtitle"]))
 	mine.set_physics_process(false)
 	before = game.coins
 	mine._physics_process(0.3)
@@ -52,6 +61,7 @@ func _run() -> void:
 	game._update_selection()
 	var view: Dictionary = game._context()
 	_check(view["options"].size() == 3, "Smith offers exactly three choices")
+	_check(view["subtitle"] == "Smith purchases cost up to 5 less gold", "Smith building upgrade explains its discount")
 	var old_damage: float = game.ranged_multiplier()
 	before = game.coins
 	var price: int = game.smith_cost("ranged")
@@ -64,6 +74,8 @@ func _run() -> void:
 	game.hero.position = Vector3(-3, 0, -5)
 	_check(game.build_at("choke", "wall"), "wall builds on fixed route plot")
 	_check(is_equal_approx(game.buildings["choke"].max_health, 204.0), "new walls inherit prior Smith fortification")
+	game.buildings["choke"].take_damage(20.0)
+	_check(game._context()["subtitle"] == "Health 184 → 396 · Fully repairs", "Wall preview includes current damage and fortified next-tier health")
 	var stopped: Vector3 = game.constrain_hero_motion(Vector3(-3, 0, -6.2), Vector3(-3, 0, -6.4))
 	_check(stopped.z >= -6.25, "hero cannot walk through a built wall")
 	game.buildings["choke"].take_damage(1000.0)
@@ -138,6 +150,8 @@ func _run() -> void:
 	game.hero.position = game._plot_by_id("crossing")["position"]
 	game.build_at("crossing", "tower")
 	var capped: Node3D = game.buildings["crossing"]
+	game.smith_levels["ranged"] = 1
+	_check(game._context()["subtitle"] == "Arrow damage 12 → 22.8 · Range 7.5 → 8.5", "Tower preview reflects the active Smith damage bonus")
 	capped.stats = capped.stats.duplicate(true)
 	capped.stats["max_level"] = 2
 	_check(game.upgrade_at("crossing") and capped.tier == 2, "Custom tier cap permits its final configured upgrade")
@@ -147,6 +161,7 @@ func _run() -> void:
 	_check(capped.tier == 2, "Building actor respects the same configured cap")
 	game._update_selection()
 	_check(game._context()["upgrade_cost"] == -1 and not game._context()["can_upgrade"], "Upgrade UI reflects the configured cap")
+	_check(game._context()["subtitle"] == "Maximum level · hold the line", "A capped building no longer advertises a next upgrade")
 	await process_frame
 	game.queue_free()
 	await process_frame

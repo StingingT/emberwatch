@@ -166,6 +166,8 @@ func _populate_live(game: Node3D) -> void:
 	game.buildings["quarry"].cooldown = 4.25
 	game.hero.position = Vector3(-1, 0, -12)
 	game.hero.add_xp(49)
+	while game.hero.pending_choices() > 0:
+		game.hero.choose_upgrade("volley")
 	game.hero.ability_cooldown = 7.25
 	game.hero._shot_remaining = 0.31
 	game.hero._model.rotation.y = 0.45

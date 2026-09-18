@@ -3,6 +3,7 @@ extends RefCounted
 ## All gameplay balance is configured here, separately from simulation code.
 
 const HERO: Dictionary = {
+	"xp_rule": "damage_share", "choice_rule": "each_level_multishot_volley_piercing", "health": 100.0, "respawn_seconds": 8.0, "protection_seconds": 1.5,
 	"speed": 6.0, "damage": 12.0, "attack_interval": 0.65, "range": 8.0,
 	"xp_thresholds": [16, 28, 42, 58, 76], "damage_per_tier": 3.0,
 	"attack_speed_per_tier": 0.10, "ability_unlock": 2,
@@ -10,6 +11,10 @@ const HERO: Dictionary = {
 	"ability_targets": 7, "ability_range": 11.0, "coin_radius": 3.3,
 }
 const ENEMIES: Dictionary = {
+	"ranger": {"id": "ranger", "health": 26.0, "speed": 1.7, "damage": 11.0,
+		"attack_interval": 2.1, "coins": 12, "xp": 5, "range": 7.0},
+	"hunter": {"id": "hunter", "health": 42.0, "speed": 3.6, "damage": 13.0,
+		"attack_interval": 1.4, "coins": 14, "xp": 7, "pursuit_range": 7.0, "route_leash": 5.0},
 	"goblin": {"id": "goblin", "health": 30.0, "speed": 2.0, "damage": 9.0,
 		"attack_interval": 1.2, "coins": 9, "xp": 4},
 	"scout": {"id": "scout", "health": 24.0, "speed": 3.1, "damage": 7.0,
@@ -17,6 +22,7 @@ const ENEMIES: Dictionary = {
 	"brute": {"id": "brute", "health": 110.0, "speed": 1.25, "damage": 20.0,
 		"attack_interval": 1.5, "coins": 22, "xp": 10},
 }
+const HERO_THREAT: Dictionary = {"windup": 0.7, "reach": 2.0, "hit_radius": 1.2}
 const BUILDINGS: Dictionary = {
 	"tower": {"name": "Archer Tower", "category": "tower", "limit": 99, "max_level": 3,
 		"costs": [40, 65, 100], "health": [150.0, 230.0, 350.0],

@@ -4,20 +4,29 @@ An original portrait action tower-defense game inspired by the fast combat/build
 
 ## Play on Windows
 
+For the current feedback build, use [the 0.3.1 playtest guide](docs/playtest_031.md) to record gameplay and device observations.
+
 Use **Godot 4.7 stable, standard edition**. Double-click **play_windows.cmd**, or import **project.godot** into Godot and press **F6** with the main scene open / **F5** to run the project. The launcher accepts a custom executable through `GODOT_BIN` or `tools/run_windows.ps1 -GodotPath <path>`.
 
 1. Select **Defend the Keep** to start the next unbeaten mission, or **Campaign** to select an unlocked mission.
 2. Move with **WASD / arrow keys** or drag the on-screen stick. Your archer aims and fires automatically.
 3. Walk near an empty plot and click its build button. **E** builds/upgrades the nearest plot on desktop (support plots default to Mine; use buttons to choose Smith).
 4. Walk near dropped coins to collect them. Building and upgrading spend the same gold during combat.
-5. Hero kills earn XP. At level 2, **Space / Volley** fires a stronger multi-target attack.
+5. Hero damage earns proportional XP, even when towers land the final hit. Each level-up pauses for a Multishot, Volley or Piercing upgrade. At level 2, **Space / Volley** fires a stronger multi-target attack.
 6. Protect the Keep through each mission's five to seven waves. Win to unlock the next mission; use **Next mission** or replay for a better rating. **Escape / II** pauses.
 
 Suggested first move: build the nearby Archer Tower for 40 gold, then head north toward incoming enemies. Walls buy time; Mine coins must be collected; the Smith strengthens towers and fortifications. Smith upgrades apply for the current run. Restart resets the run.
 
+Selected empty tower plots preview firing range before construction. Nearby upgrade panels explain the next tier's benefits before you spend gold.
+
 Mission cards explain the strategic variation. Sunscar has one support plot, so choose a Mine or Smith. Moonfen allows two Mines. Win with at least 40%/80% Keep health for two/three stars; any victory earns one. Replaying cannot reduce your best rating or time.
 
+After each battle, the results show battle time and remaining Keep health alongside waves, kills and collected gold.
+Completed mission cards show your best completion time beside the saved star rating.
+
 **Settings** on the title and pause screens control sound, reduced motion, larger controls and tutorial hints. Completed missions and preferences save locally with a recovery backup.
+
+Turning sound off immediately stops active effects. Turning it back on permits new effects without replaying old ones.
 
 **Continue defense** restores one interrupted battle **paused**, including gold, health, hero XP, buildings, enemies, flying arrows, coin piles and timers. Resume when ready; no offline time advances. Checkpoints save every five seconds of active play and on pause, title return, app suspension and normal desktop close. An abrupt termination recovers the last successful checkpoint. Restarting or choosing a new mission replaces the saved battle. Save failures appear in the UI while session play remains available.
 
@@ -66,6 +75,7 @@ On Mac, run the same Godot checks directly:
 ```sh
 GODOT=/Applications/Godot.app/Contents/MacOS/Godot
 "$GODOT" --headless --path . --editor --import --quit
+"$GODOT" --headless --audio-driver Dummy --path . --script tests/check_sound.gd --quit-after 4000
 "$GODOT" --headless --path . --script tests/check_economy.gd --fixed-fps 60 --quit-after 4000
 "$GODOT" --headless --path . --script tests/check_combat.gd --fixed-fps 60 --quit-after 4000
 "$GODOT" --headless --path . --script tests/check_ui.gd --fixed-fps 60 --quit-after 4000
@@ -85,7 +95,7 @@ Check success markers and error output as well as exit codes: Godot may return e
 
 The supplied reference is preserved in `docs/kingshot_design_reference.md`. Current decisions and boundaries are in `docs/architecture.md`; the larger roadmap remains in `PROJECT_PLAN.md`.
 
-Current evidence is in [docs/validation.md](docs/validation.md) and [docs/recovery_validation.md](docs/recovery_validation.md). The recovery contract is in [docs/run_recovery_plan.md](docs/run_recovery_plan.md); campaign scope and remaining full-game work are in [docs/campaign_plan.md](docs/campaign_plan.md). Tests and rendered fixtures use memory-only or isolated profile/run stores and never overwrite player progress. The iOS and Android handoff presets are version **0.3.0**, build **3**; Android debug export is verified locally, while release signing and physical-device validation remain pending. See [docs/mobile_handoff.md](docs/mobile_handoff.md) for Android setup.
+Current evidence is in [docs/validation.md](docs/validation.md) and [docs/recovery_validation.md](docs/recovery_validation.md). The recovery contract is in [docs/run_recovery_plan.md](docs/run_recovery_plan.md); campaign scope and remaining full-game work are in [docs/campaign_plan.md](docs/campaign_plan.md). Tests and rendered fixtures use memory-only or isolated profile/run stores and never overwrite player progress. The iOS and Android handoff presets are version **0.3.1**, build **4**; Android debug export is verified locally, while release signing and physical-device validation remain pending. See [docs/mobile_handoff.md](docs/mobile_handoff.md) for Android setup.
 
 Building tier caps and Smith price scaling live in `game/game_data.gd`, alongside the other balance values. Routine balance changes do not require editing purchase logic.
 

@@ -18,6 +18,7 @@ func _run() -> void:
 	await _capture("title")
 	game.start_run()
 	game.set_physics_process(false)
+	await _capture("tower_plot_preview")
 	game.coins = 2000
 	game.hero.position = Vector3(-6, 0, -1.5)
 	game.build_at("bend", "tower")
@@ -67,6 +68,7 @@ func _run() -> void:
 	game.wave_cursor = game.wave_configs[game.wave_index]["enemies"].size()
 	game.collect_coin(27, game.hero.position)
 	game.feedback.hit(Vector3(-3, 0, -10.0), true)
+	game.feedback.construction(game.buildings["bend"].position)
 	game.feedback._process(0.1)
 	game._update_hud()
 	await _capture("feedback")
@@ -82,6 +84,14 @@ func _run() -> void:
 	for frame: int in range(6):
 		await process_frame
 	await _capture("smith_purchase")
+	# Inspect the production upgrade offers for all other structure types.
+	for plot_id: String in ["bend", "choke", "quarry"]:
+		game.hero.position = game._plot_by_id(plot_id)["position"] + Vector3(0, 0, 2.2)
+		game._camera_focus = game.hero.position + Vector3(0, 0, -2)
+		game._update_camera(1.0)
+		game._update_selection()
+		game._update_hud()
+		await _capture("upgrade_" + plot_id)
 	game.pause_run()
 	await _capture("pause")
 	print("CAPTURE_PASS")

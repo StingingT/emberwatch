@@ -24,6 +24,32 @@ var _model: Node3D
 var _rest_scale: Vector3 = Vector3.ONE
 var _health_root: Node3D
 var _health_fill: MeshInstance3D
+var hero_windup: float = 0.0
+var hero_aim: Vector3 = Vector3.ZERO
+var _hero_warning: Node3D
+
+func _attack_hero(delta: float) -> bool:
+	var target: Node3D = game.get_hero()
+	if hero_windup > 0.0:
+		hero_windup = maxf(0.0, hero_windup - delta)
+		if hero_windup <= 0.0:
+			_hero_warning.hide()
+			_attack_remaining = _attack_interval
+			if kind == "ranger":
+				if target.is_alive() and position.distance_to(target.position) <= float(GameData.ENEMIES[kind]["range"]):
+					game.fire_enemy_bolt(position + Vector3(0, 0.85, 0), target.position + Vector3(0, 0.85, 0), _damage)
+			elif target.is_alive() and target.position.distance_to(hero_aim) <= float(GameData.HERO_THREAT["hit_radius"]):
+				target.take_damage(_damage)
+		return true
+	var reach: float = float(GameData.ENEMIES[kind]["range"]) if kind == "ranger" else float(GameData.HERO_THREAT["reach"])
+	if target.is_alive() and _attack_remaining <= 0.0 and position.distance_to(target.position) <= reach:
+		hero_aim = target.position
+		hero_windup = float(GameData.HERO_THREAT["windup"])
+		_hero_warning.global_position = (position if kind == "ranger" else hero_aim) + Vector3(0, 0.07, 0)
+		_hero_warning.show()
+		_face(hero_aim - position)
+		return true
+	return false
 
 
 func setup(owner_game: Node, stats: Dictionary, route: Array[Vector3]) -> void:
@@ -44,10 +70,14 @@ func setup(owner_game: Node, stats: Dictionary, route: Array[Vector3]) -> void:
 	add_child(_model)
 	_rest_scale = _model.scale
 	_create_health_bar()
+	_hero_warning = Visuals.ring(float(GameData.HERO_THREAT["hit_radius"]), Color("ff7954"))
+	add_child(_hero_warning)
+	_hero_warning.hide()
 
 
 func capture_state() -> Dictionary:
 	return {"position": [position.x, position.y, position.z], "kind": kind,
+		"hero_windup": hero_windup, "hero_aim": [hero_aim.x, hero_aim.y, hero_aim.z],
 		"health": health, "max_health": max_health, "route_index": route_index,
 		"attack_remaining": _attack_remaining, "facing": _model.rotation.y}
 
@@ -61,6 +91,11 @@ func restore_state(saved: Dictionary) -> void:
 	max_health = float(saved["max_health"])
 	route_index = int(saved["route_index"])
 	_attack_remaining = float(saved["attack_remaining"])
+	hero_windup = float(saved["hero_windup"])
+	var aim: Array = saved["hero_aim"]
+	hero_aim = Vector3(float(aim[0]), float(aim[1]), float(aim[2]))
+	_hero_warning.global_position = (position if kind == "ranger" else hero_aim) + Vector3(0, 0.07, 0)
+	_hero_warning.visible = hero_windup > 0.0
 	dead = false
 	_walk_phase = 0.0
 	_hit_flash = 0.0
@@ -75,6 +110,8 @@ func _physics_process(delta: float) -> void:
 	if dead or not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return
 	_attack_remaining = maxf(0.0, _attack_remaining - delta)
+	if _attack_hero(delta):
+		return
 	_hit_flash = maxf(0.0, _hit_flash - delta * 7.0)
 	_attack_swing = maxf(0.0, _attack_swing - delta * 4.0)
 	var moving: bool = false
@@ -82,7 +119,7 @@ func _physics_process(delta: float) -> void:
 		if route_index >= _route.size():
 			_attack_keep()
 		else:
-			moving = _follow_route(delta)
+			moving = _hunt_hero(delta) or _follow_route(delta)
 	_walk_phase += delta * _speed * 6.0 if moving else 0.0
 	if is_instance_valid(_model):
 		_model.position.y = absf(sin(_walk_phase)) * 0.07 if moving else 0.0
@@ -99,7 +136,10 @@ func take_damage(amount: float, source: String) -> void:
 		return
 	if not is_instance_valid(game) or not bool(game.call("is_playing")):
 		return
-	health = maxf(0.0, health - amount)
+	var actual_damage: float = minf(health, amount)
+	health = maxf(0.0, health - actual_damage)
+	if source == "hero":
+		game.on_enemy_damaged(actual_damage / max_health * float(_xp))
 	game.call("show_hit", global_position, health <= 0.0)
 	_hit_flash = 1.0
 	_update_health_bar()
@@ -110,6 +150,29 @@ func take_damage(amount: float, source: String) -> void:
 	game.call("on_enemy_killed", self, source, _coins, _xp)
 	_make_death_feedback()
 	queue_free()
+
+
+## Pursuit is constrained to the current route segment; route progress never advances off-trail.
+func _hunt_hero(delta: float) -> bool:
+	if kind != "hunter" or _route.is_empty():
+		return false
+	var target: Node3D = game.get_hero()
+	var stats: Dictionary = GameData.ENEMIES[kind]
+	if not target.is_alive() or position.distance_to(target.position) > float(stats["pursuit_range"]):
+		return false
+	var segment_end: int = clampi(route_index, 0, _route.size() - 1)
+	var anchor: Vector3 = Geometry3D.get_closest_point_to_segment(target.position, _route[maxi(0, segment_end - 1)], _route[segment_end])
+	if anchor.distance_to(target.position) > float(stats["route_leash"]):
+		return false
+	var offset: Vector3 = target.position - position
+	var direction: Vector3 = offset.normalized()
+	var destination: Vector3 = position + direction * minf(_speed * delta, maxf(0.0, offset.length() - 1.5))
+	var wall: Node3D = game.get_blocking_wall(position, destination + direction * 0.65)
+	if is_instance_valid(wall):
+		return false
+	position = destination
+	_face(direction)
+	return true
 
 
 func _follow_route(delta: float) -> bool:

@@ -18,7 +18,22 @@ static func capture(game: Node) -> Dictionary:
 		actors.append(saved)
 	var arrows: Array = []
 	for arrow: Node3D in game._projectiles.get_children():
+		if arrow.has_method("snapshot_hits"):
+			if arrow.finished or arrow.is_queued_for_deletion():
+				continue
+			var piercing: Dictionary = arrow.capture_state()
+			piercing["hit_ids"] = []
+			for hit: Node3D in arrow.snapshot_hits():
+				if ids.has(hit):
+					piercing["hit_ids"].append(ids[hit])
+			arrows.append(piercing)
+			continue
 		var target: Node3D = arrow.snapshot_target()
+		if target == game.hero:
+			var hostile: Dictionary = arrow.capture_state()
+			hostile["target_id"] = -1
+			arrows.append(hostile)
+			continue
 		if target == null or not ids.has(target):
 			continue
 		var saved: Dictionary = arrow.capture_state()
@@ -101,8 +116,12 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 	if int(saved["kills"]) + saved["enemies"].size() != spawned:
 		return invalid("Spawned and surviving enemy counts do not agree.")
 	var hero: Variant = saved["hero"]
-	if not keys(hero, ["position", "tier", "xp", "ability_cooldown", "shot_remaining", "facing"]):
+	if not keys(hero, ["position", "tier", "xp", "choices", "ability_cooldown", "shot_remaining", "facing", "health", "respawn_remaining", "protection_remaining"]):
 		return invalid("Invalid archer fields.")
+	if not number(hero["health"], 0, float(Data.HERO["health"])) or not number(hero["respawn_remaining"], 0, float(Data.HERO["respawn_seconds"])) or not number(hero["protection_remaining"], 0, float(Data.HERO["protection_seconds"])):
+		return invalid("Invalid archer health or respawn timers.")
+	if (float(hero["health"]) == 0.0) != (float(hero["respawn_remaining"]) > 0.0):
+		return invalid("Archer life state and respawn timer disagree.")
 	var thresholds: Array = Data.HERO["xp_thresholds"]
 	# Rect2.grow/end and the runtime scalar clamp round differently at float32
 	# edges. Accept the real clamped position without moving it during restoration.
@@ -113,13 +132,26 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 	if hero_position.distance_squared_to(level["keep"]) < float(Data.FOOTPRINTS["keep_radius_squared"]):
 		return invalid("The archer cannot be restored inside the Keep.")
 	var tier: int = int(hero["tier"])
-	var max_xp: int = int(thresholds[tier - 1]) - 1 if tier <= thresholds.size() else 0
-	if not integer(hero["xp"], 0, max_xp) or not number(hero["ability_cooldown"], 0, float(Data.HERO["ability_cooldown"]) + 0.001) or not number(hero["shot_remaining"], 0, float(Data.HERO["attack_interval"]) + 0.001) or not number(hero["facing"], -MAX_COUNT, MAX_COUNT):
+	if not keys(hero["choices"], ["multishot", "volley", "piercing"]):
+		return invalid("Invalid hero choices.")
+	var spent_choices: int = 0
+	for rank: Variant in hero["choices"].values():
+		if not integer(rank, 0, thresholds.size()):
+			return invalid("Invalid hero choice rank.")
+		spent_choices += int(rank)
+	if spent_choices > tier - 1:
+		return invalid("Hero choices exceed earned levels.")
+	var max_xp: float = float(thresholds[tier - 1]) if tier <= thresholds.size() else 0.0
+	if tier <= thresholds.size() and number(hero["xp"], max_xp, MAX_COUNT):
+		return invalid("Unprocessed archer level-up.")
+	if not number(hero["xp"], 0, max_xp) or not number(hero["ability_cooldown"], 0, float(Data.HERO["ability_cooldown"]) + 0.001) or not number(hero["shot_remaining"], 0, float(Data.HERO["attack_interval"]) + 0.001) or not number(hero["facing"], -MAX_COUNT, MAX_COUNT):
 		return invalid("Invalid archer XP or cooldowns.")
 	var enemy_ids: Dictionary = {}
 	for enemy: Variant in saved["enemies"]:
-		if not keys(enemy, ["id", "position", "kind", "health", "max_health", "route_index", "attack_remaining", "facing"]):
+		if not keys(enemy, ["id", "position", "kind", "health", "max_health", "route_index", "attack_remaining", "facing", "hero_windup", "hero_aim"]):
 			return invalid("Invalid enemy fields.")
+		if not number(enemy["hero_windup"], 0, float(Data.HERO_THREAT["windup"])) or not position(enemy["hero_aim"], bounds):
+			return invalid("Invalid enemy hero attack.")
 		if not integer(enemy["id"], 0, 511) or enemy_ids.has(int(enemy["id"])) or not enemy["kind"] is String or not Data.ENEMIES.has(enemy["kind"]):
 			return invalid("Invalid or duplicate enemy identity.")
 		enemy_ids[int(enemy["id"])] = true
@@ -130,6 +162,25 @@ static func validate(saved: Dictionary, missions: Array[Dictionary]) -> Dictiona
 		if not position(enemy["position"], bounds.grow(1.0)) or not integer(enemy["route_index"], 0, level["route"].size()) or not number(enemy["attack_remaining"], 0, float(spec["attack_interval"]) + 0.001) or not number(enemy["facing"], -MAX_COUNT, MAX_COUNT):
 			return invalid("Invalid enemy route or attack timing.")
 	for arrow: Variant in saved["arrows"]:
+		if arrow is Dictionary and arrow.get("source") == "piercing":
+			if not keys(arrow, ["source", "position", "direction", "damage", "distance_left", "remaining_hits", "hit_ids"]):
+				return invalid("Invalid piercing arrow fields.")
+			if not position(arrow["position"], bounds.grow(15.0), 2.0) or not position(arrow["direction"], Rect2(-1, -1, 2, 2)) or not number(arrow["damage"], 0.000001, MAX_COUNT) or not number(arrow["distance_left"], 0.000001, 12.001) or not integer(arrow["remaining_hits"], 1, 8):
+				return invalid("Invalid piercing arrow motion.")
+			if absf(to_vector(arrow["direction"]).length() - 1.0) > 0.001 or not arrow["hit_ids"] is Array or arrow["hit_ids"].size() > 8:
+				return invalid("Invalid piercing arrow history.")
+			var seen: Dictionary = {}
+			for hit: Variant in arrow["hit_ids"]:
+				if not integer(hit, 0, 511) or not enemy_ids.has(int(hit)) or seen.has(int(hit)):
+					return invalid("Invalid piercing target history.")
+				seen[int(hit)] = true
+			continue
+		if arrow is Dictionary and arrow.get("source") == "enemy":
+			if not keys(arrow, ["target_id", "position", "destination", "damage", "source", "speed", "lifetime"]):
+				return invalid("Invalid hostile projectile fields.")
+			if not integer(arrow["target_id"], -1, -1) or not position(arrow["position"], bounds.grow(1.0), 2.0) or not position(arrow["destination"], bounds, 2.0) or not number(arrow["damage"], 0.000001, MAX_COUNT) or not number(arrow["speed"], 9.0, 9.0) or not number(arrow["lifetime"], 0.0, 2.001):
+				return invalid("Invalid hostile projectile motion.")
+			continue
 		if not keys(arrow, ["target_id", "position", "damage", "source", "speed", "lifetime"]):
 			return invalid("Invalid projectile fields.")
 		if not integer(arrow["target_id"], 0, 511) or not enemy_ids.has(int(arrow["target_id"])) or not arrow["source"] is String or arrow["source"] not in ["hero", "tower"]:
@@ -181,7 +232,7 @@ static func fingerprint(mission: Dictionary) -> String:
 		spec.erase("name")
 		spec.erase("description")
 	return JSON.stringify(primitives({"mission_id": mission["id"], "level": level, "waves": waves,
-		"hero": Data.HERO, "enemies": Data.ENEMIES, "buildings": buildings, "smith": smith,
+		"hero": Data.HERO, "hero_threat": Data.HERO_THREAT, "enemies": Data.ENEMIES, "buildings": buildings, "smith": smith,
 		"smith_pricing": Data.SMITH_PRICING, "starting_coins": Data.STARTING_COINS,
 		"keep_health": Data.KEEP_HEALTH, "build_radius": Data.BUILD_RADIUS,
 		"preparation": Data.PREPARATION_TIME, "between_waves": Data.BETWEEN_WAVES,

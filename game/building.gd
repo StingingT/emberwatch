@@ -1,7 +1,7 @@
 class_name BuildingActor
 extends Node3D
 
-const Visuals = preload("res://common/visuals.gd")
+const Visuals = preload("res://common/army_building_visuals.gd")
 var game: Node
 var kind: String = "tower"
 var tier: int = 1
@@ -51,11 +51,19 @@ func _physics_process(delta: float) -> void:
 		var target: Node3D = game.nearest_enemy(global_position, float(stats["range"][tier - 1]))
 		if is_instance_valid(target):
 			var damage: float = float(stats["damage"][tier - 1]) * game.ranged_multiplier()
-			game.spawn_arrow(global_position + Vector3(0, 1.62 + 0.43 * tier, 0), target, damage, "tower")
+			var origins: Array[Vector3] = Visuals.firing_points(model, target.global_position)
+			if origins.is_empty():
+				origins.append(global_position + Vector3(0, 1.62 + 0.43 * tier, 0))
+			# The visible crew shares one configured salvo budget, not N times its damage.
+			for origin: Vector3 in origins:
+				game.spawn_arrow(origin, target, damage / origins.size(), "tower")
 			cooldown = float(stats["interval"][tier - 1]) / game.haste_multiplier()
 			game.play_sound("tower")
 	elif kind == "mine":
-		game.drop_coin(global_position + Vector3(-1.35, 0, 0.9), int(stats["production"][tier - 1]))
+		var amount: int = int(stats["production"][tier - 1])
+		if game.has_method("mine_yield"):
+			amount = game.mine_yield(amount)
+		game.drop_coin(global_position + Vector3(-1.35, 0, 0.9), amount)
 		cooldown = float(stats["interval"][tier - 1])
 
 func maximum_level() -> int:
@@ -127,6 +135,9 @@ func _bar(color: Color) -> MeshInstance3D:
 func _update_health_bar() -> void:
 	if not is_instance_valid(_health_bar):
 		return
+	if kind == "tower":
+		_health_bar.position.y = Visuals.HEIGHTS[clampi(tier, 1, 3) - 1] + 1.8
+		_health_back.position.y = _health_bar.position.y
 	_health_bar.scale.x = maxf(0.001, health / max_health)
 	_health_bar.position.x = -(1.0 - health / max_health)
 	_health_bar.visible = health < max_health

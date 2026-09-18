@@ -6,6 +6,8 @@ const Visuals = preload("res://common/visuals.gd")
 const WorldScript = preload("res://levels/battlefield.gd")
 const HeroScript = preload("res://entities/hero.gd")
 const EnemyScript = preload("res://entities/enemy.gd")
+const PiercingArrowScript = preload("res://entities/piercing_arrow.gd")
+const EnemyBoltScript = preload("res://entities/enemy_bolt.gd")
 const ArrowScript = preload("res://entities/projectile.gd")
 const CoinScript = preload("res://entities/coin.gd")
 const BuildingScript = preload("res://game/building.gd")
@@ -18,6 +20,7 @@ const RunStoreScript = preload("res://game/run_store.gd")
 const Snapshot = preload("res://game/run_snapshot.gd")
 
 var state: String = "menu"
+var _require_movement_release: bool = false
 var persistent_profile: bool = true
 var profile: RefCounted
 var run_store: RefCounted
@@ -137,6 +140,7 @@ func _ready() -> void:
 	hud.menu_requested.connect(return_to_menu)
 	hud.pause_requested.connect(pause_run)
 	hud.resume_requested.connect(resume_run)
+	hud.hero_choice_requested.connect(choose_hero_upgrade)
 	hud.build_requested.connect(build_selected)
 	hud.upgrade_requested.connect(upgrade_selected)
 	hud.smith_requested.connect(buy_smith_upgrade)
@@ -172,7 +176,8 @@ func campaign_rows() -> Array[Dictionary]:
 		var mission: Dictionary = missions[index]
 		var result: Dictionary = profile.data["results"].get(mission["id"], {})
 		rows.append({"id": mission["id"], "name": mission["name"], "briefing": mission["briefing"],
-			"unlocked": mission_unlocked(index), "stars": int(result.get("stars", 0))})
+			"unlocked": mission_unlocked(index), "stars": int(result.get("stars", 0)),
+			"best_time": float(result.get("best_time", 0.0))})
 	return rows
 
 func campaign_complete() -> bool:
@@ -316,10 +321,16 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(hero):
 		return
 	hero.move_input = Vector2.ZERO
+	if is_playing() and hero.pending_choices() > 0:
+		offer_hero_choice()
 	if is_playing():
 		var keyboard := Vector2(
 			float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),
 			float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)) - float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
+		if _require_movement_release:
+			if keyboard == Vector2.ZERO:
+				_require_movement_release = false
+			keyboard = Vector2.ZERO
 		var touch: Vector2 = hud.movement_vector()
 		hero.move_input = (touch if touch.length() > 0.05 else keyboard).limit_length()
 		elapsed += delta
@@ -428,14 +439,27 @@ func spawn_arrow(at: Vector3, target: Node3D, damage: float, source: String) -> 
 	_projectiles.add_child(arrow)
 	arrow.setup(self, at, target, damage, source)
 
-func on_enemy_killed(enemy: Node3D, source: String, reward: int, xp_reward: int) -> void:
+func fire_piercing_arrow(at: Vector3, direction: Vector3, damage: float, hits: int = 3) -> void:
+	var arrow: Node3D = PiercingArrowScript.new()
+	_projectiles.add_child(arrow)
+	arrow.setup(self, at, direction, damage, hits)
+
+func fire_enemy_bolt(at: Vector3, aim: Vector3, damage: float) -> void:
+	var bolt: Node3D = EnemyBoltScript.new()
+	_projectiles.add_child(bolt)
+	bolt.setup(self, at, aim, damage)
+	play_sound("shoot")
+
+func on_enemy_damaged(xp_reward: float) -> void:
+	if is_playing() and is_instance_valid(hero):
+		hero.add_xp(xp_reward)
+
+func on_enemy_killed(enemy: Node3D, _source: String, reward: int, _xp_reward: int) -> void:
 	if not enemies.has(enemy):
 		return
 	enemies.erase(enemy)
 	kills += 1
 	drop_coin(enemy.global_position, reward)
-	if source == "hero" and is_instance_valid(hero):
-		hero.add_xp(xp_reward)
 	play_sound("hit")
 
 func drop_coin(at: Vector3, amount: int) -> void:
@@ -461,6 +485,16 @@ func show_hit(at: Vector3, lethal: bool) -> void:
 
 func get_hero() -> Node3D:
 	return hero
+
+func hero_respawn_position() -> Vector3:
+	var bounds: Rect2 = Rect2(level["bounds"]).grow(-float(Data.FOOTPRINTS["hero_margin"]))
+	for radius: int in range(3, 20):
+		for step: int in range(24):
+			var angle: float = TAU * step / 24.0
+			var at: Vector3 = level["keep"] + Vector3(sin(angle), 0, -cos(angle)) * radius
+			if bounds.has_point(Vector2(at.x, at.z)) and not _position_blocked(at):
+				return at
+	return hero.position
 
 func get_blocking_wall(at: Vector3, next: Vector3) -> Node3D:
 	var travel: Vector3 = next - at
@@ -504,22 +538,28 @@ func _update_selection() -> void:
 		_selection.position = nearest["position"] + Vector3(0, 0.04, 0)
 	if changed:
 		_refresh_range_ring()
+	if is_instance_valid(_range_ring):
+		_range_ring.visible = true
 	hud.show_context(_context())
 
 func _refresh_range_ring() -> void:
 	if is_instance_valid(_range_ring):
 		_range_ring.queue_free()
 		_range_ring = null
-	if selected_plot.is_empty() or not buildings.has(selected_plot["id"]):
+	if selected_plot.is_empty():
 		return
-	var building: Node3D = buildings[selected_plot["id"]]
-	if building.kind == "tower":
-		_range_ring = Visuals.ring(float(Data.BUILDINGS["tower"]["range"][building.tier - 1]), Color(1.0, 0.91, 0.64, 0.28))
-		_range_ring.position = building.position + Vector3(0, 0.035, 0)
-		add_child(_range_ring)
+	var building: Node3D = buildings.get(selected_plot["id"])
+	if is_instance_valid(building) and building.kind != "tower":
+		return
+	if not is_instance_valid(building) and selected_plot["category"] != "tower":
+		return
+	var tier: int = building.tier if is_instance_valid(building) else 1
+	_range_ring = Visuals.ring(float(Data.BUILDINGS["tower"]["range"][tier - 1]), Color(1.0, 0.91, 0.64, 0.28))
+	_range_ring.position = selected_plot["position"] + Vector3(0, 0.035, 0)
+	add_child(_range_ring)
 
 func _context() -> Dictionary:
-	if selected_plot.is_empty() or not is_playing():
+	if selected_plot.is_empty() or not is_playing() or not hero.is_alive():
 		return {}
 	var result: Dictionary = {"title": "Build your defense", "subtitle": "Choose a structure · combat stays live",
 		"selection_id": str(selected_plot["id"]),
@@ -535,6 +575,7 @@ func _context() -> Dictionary:
 		if building.tier < building.maximum_level():
 			result["upgrade_cost"] = int(spec["costs"][building.tier])
 			result["can_upgrade"] = coins >= int(result["upgrade_cost"])
+			result["subtitle"] = _upgrade_preview(building)
 		else:
 			result["subtitle"] = "Maximum level · hold the line"
 		if building.kind == "smith":
@@ -554,11 +595,32 @@ func _context() -> Dictionary:
 	result["options"] = options
 	return result
 
+func _stat_number(value: float, decimals: int) -> String:
+	return String.num(value, decimals).trim_suffix(".0")
+
+func _upgrade_preview(building: Node3D) -> String:
+	var spec: Dictionary = Data.BUILDINGS[building.kind]
+	var current: int = building.tier - 1
+	var next: int = building.tier
+	match building.kind:
+		"tower":
+			return "Arrow damage %s → %s · Range %s → %s" % [
+				_stat_number(float(spec["damage"][current]) * ranged_multiplier(), 1), _stat_number(float(spec["damage"][next]) * ranged_multiplier(), 1),
+				_stat_number(float(spec["range"][current]), 1), _stat_number(float(spec["range"][next]), 1)]
+		"wall":
+			return "Health %s → %s · Fully repairs" % [_stat_number(building.health, 1), _stat_number(float(spec["health"][next]) * fortify_multiplier(), 1)]
+		"mine":
+			return "Gold %d / %ss → %d / %ss" % [int(spec["production"][current]), _stat_number(float(spec["interval"][current]), 1),
+				int(spec["production"][next]), _stat_number(float(spec["interval"][next]), 1)]
+		"smith":
+			return "Smith purchases cost up to %d less gold" % int(Data.SMITH_PRICING["tier_discount"])
+	return "Level %d → %d" % [building.tier, building.tier + 1]
+
 func build_selected(kind: String) -> void:
 	build_at(str(selected_plot.get("id", "")), kind)
 
 func build_at(plot_id: String, kind: String) -> bool:
-	if not is_playing() or not Data.BUILDINGS.has(kind) or buildings.has(plot_id):
+	if not is_playing() or not hero.is_alive() or not Data.BUILDINGS.has(kind) or buildings.has(plot_id):
 		return false
 	var plot: Dictionary = _plot_by_id(plot_id)
 	if plot.is_empty() or hero.position.distance_to(plot["position"]) > Data.BUILD_RADIUS:
@@ -579,6 +641,7 @@ func build_at(plot_id: String, kind: String) -> bool:
 	hero.position = clear_position
 	plot_views[plot_id].visible = false
 	play_sound("build")
+	feedback.construction(building.position)
 	notify("%s ready" % spec["name"], "success")
 	_refresh_range_ring()
 	_update_selection()
@@ -589,7 +652,7 @@ func upgrade_selected() -> void:
 	upgrade_at(str(selected_plot.get("id", "")))
 
 func upgrade_at(plot_id: String) -> bool:
-	if not is_playing() or not buildings.has(plot_id):
+	if not is_playing() or not hero.is_alive() or not buildings.has(plot_id):
 		return false
 	var building: Node3D = buildings[plot_id]
 	if building.tier >= building.maximum_level() or hero.position.distance_to(building.position) > Data.BUILD_RADIUS:
@@ -600,6 +663,7 @@ func upgrade_at(plot_id: String) -> bool:
 	coins -= cost
 	building.upgrade()
 	play_sound("build")
+	feedback.construction(building.position)
 	notify("%s · Level %d" % [Data.BUILDINGS[building.kind]["name"], building.tier], "success")
 	_refresh_range_ring()
 	_update_selection()
@@ -629,7 +693,7 @@ func smith_cost(id: String) -> int:
 		- (smith_tier - 1) * int(Data.SMITH_PRICING["tier_discount"]))
 
 func buy_smith_upgrade(id: String) -> void:
-	if not is_playing() or not Data.SMITH.has(id) or selected_plot.is_empty():
+	if not is_playing() or not hero.is_alive() or not Data.SMITH.has(id) or selected_plot.is_empty():
 		return
 	var smith: Node3D = buildings.get(selected_plot["id"])
 	if not is_instance_valid(smith) or smith.kind != "smith" or hero.position.distance_to(smith.position) > Data.BUILD_RADIUS:
@@ -734,6 +798,28 @@ func use_ability() -> void:
 		if hero.use_ability():
 			_used_volley = true
 
+func offer_hero_choice() -> void:
+	if state not in ["playing", "paused"] or hero.pending_choices() <= 0:
+		return
+	state = "paused"
+	hero.move_input = Vector2.ZERO
+	hud.reset_input()
+	_require_movement_release = true
+	hud.show_hero_choices(hero.choices)
+
+func choose_hero_upgrade(id: String) -> void:
+	if state != "paused" or hud._overlay_mode != "hero_choice":
+		return
+	if not hero.choose_upgrade(id):
+		return
+	hud.reset_input()
+	hero.move_input = Vector2.ZERO
+	play_sound("level_up")
+	if hero.pending_choices() > 0:
+		offer_hero_choice()
+	else:
+		resume_run()
+
 func pause_run() -> void:
 	if not is_playing():
 		return
@@ -745,6 +831,9 @@ func pause_run() -> void:
 
 func resume_run() -> void:
 	if state != "paused":
+		return
+	if hero.pending_choices() > 0:
+		offer_hero_choice()
 		return
 	state = "playing"
 	hud.reset_input()
@@ -793,6 +882,7 @@ func _finish_run(won: bool) -> void:
 	_refresh_save_notice()
 	hud.show_context({})
 	hud.show_result(won, {"kills": kills, "coins": coins_collected, "wave": wave_index + 1,
+		"elapsed": elapsed, "keep_health": keep_health, "keep_max": keep_max,
 		"total_waves": wave_configs.size(), "stars": stars, "mission_name": missions[mission_index]["name"],
 		"next_available": won and mission_index + 1 < missions.size(),
 		"campaign_complete": won and campaign_complete(),
@@ -814,6 +904,7 @@ func _update_hud() -> void:
 		if enemy.position.z > 1.0:
 			threats += 1
 	hud.update_state({"coins": coins, "keep_health": keep_health, "keep_max": keep_max,
+		"hero_health": hero.health, "hero_respawn": hero.respawn_remaining, "hero_protection": hero.protection_remaining,
 		"wave": maxi(1, wave_index + 1), "total_waves": wave_configs.size(), "wave_text": wave_text,
 		"wave_remaining": wave_remaining, "wave_total": wave_total, "wave_active": wave_active,
 		"kills": kills, "hero_level": hero.tier, "xp": hero.xp, "next_xp": hero.next_xp,
@@ -832,7 +923,7 @@ func _update_tutorial() -> void:
 		elif coins_collected == 0:
 			hint = "Walk near gold to collect it. Spend it on stronger defenses."
 		elif hero.tier < int(Data.HERO["ability_unlock"]):
-			hint = "Your archer's kills earn XP. Level 2 unlocks Volley."
+			hint = "Your archer's damage earns XP. Level 2 unlocks Volley."
 		elif not _used_volley:
 			hint = "Use Volley near a group of goblins. Tap the gold button or Space."
 	hud.show_hint(hint)
@@ -981,6 +1072,21 @@ func restore_run_snapshot(saved: Dictionary) -> bool:
 		coin.setup(self, Snapshot.to_vector(data["position"]), int(data["value"]))
 		coin.restore_state(data)
 	for data: Dictionary in snapshot["arrows"]:
+		if data["source"] == "piercing":
+			var piercing: Node3D = PiercingArrowScript.new()
+			_projectiles.add_child(piercing)
+			piercing.setup(self, Snapshot.to_vector(data["position"]), Snapshot.to_vector(data["direction"]), float(data["damage"]), int(data["remaining_hits"]))
+			var hits: Array[Node3D] = []
+			for id: int in data["hit_ids"]:
+				hits.append(restored_enemies[id])
+			piercing.restore_state(data, hits)
+			continue
+		if data["source"] == "enemy":
+			var bolt: Node3D = EnemyBoltScript.new()
+			_projectiles.add_child(bolt)
+			bolt.setup(self, Snapshot.to_vector(data["position"]), Snapshot.to_vector(data["destination"]), float(data["damage"]))
+			bolt.restore_state(data)
+			continue
 		var arrow: Node3D = ArrowScript.new()
 		_projectiles.add_child(arrow)
 		arrow.setup(self, Snapshot.to_vector(data["position"]), restored_enemies[int(data["target_id"])], float(data["damage"]), str(data["source"]), float(data["speed"]))

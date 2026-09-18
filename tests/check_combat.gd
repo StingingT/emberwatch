@@ -25,6 +25,7 @@ func _run() -> void:
 	await process_frame
 	await _check_movement_and_pause()
 	await _check_hero_arrows()
+	await _check_damage_xp()
 	await _check_tower_attribution()
 	await _check_projectile_lifecycle()
 	await _check_coin_collection()
@@ -93,12 +94,29 @@ func _check_hero_arrows() -> void:
 	await _step(0.7)
 	check(_game.kills == 1 and enemy_ref.get_ref() == null,
 		"Automatic hero arrows kill and remove a real enemy")
-	check(hero.xp == 4, "A hero finishing arrow awards enemy XP")
+	check(hero.xp == 4, "Dealing all enemy health awards its full XP value")
 	check(_game.coins == gold_before and _coin_total() == 9,
 		"A kill drops physical gold without immediately crediting it")
 	await _step(0.3)
 	check(_game.kills == 1 and hero.xp == 4,
 		"An enemy death awards kills and XP exactly once")
+
+
+func _check_damage_xp() -> void:
+	await _fresh_run()
+	var enemy: Node3D = _spawn_enemy(Vector3(0, 0, -4), {"health": 30.0, "speed": 0.0})
+	enemy.take_damage(3.0, "hero")
+	check(is_equal_approx(_game.hero.xp, 0.4) and not enemy.dead, "Nonlethal hero damage immediately earns fractional XP")
+	enemy.take_damage(12.0, "tower")
+	check(is_equal_approx(_game.hero.xp, 0.4), "Tower damage awards no hero XP")
+	enemy.take_damage(300.0, "hero")
+	check(is_equal_approx(_game.hero.xp, 2.4), "Overkill rewards only remaining health without a kill bonus")
+	enemy.take_damage(300.0, "hero")
+	check(is_equal_approx(_game.hero.xp, 2.4), "Dead targets cannot award XP twice")
+	var second: Node3D = _spawn_enemy(Vector3(0, 0, -4), {"health": 30.0, "speed": 0.0})
+	second.take_damage(15.0, "hero")
+	second.take_damage(100.0, "tower")
+	check(is_equal_approx(_game.hero.xp, 4.4), "Tower last hit preserves XP already earned by hero damage")
 
 
 func _check_tower_attribution() -> void:
@@ -188,7 +206,7 @@ func _check_volley() -> void:
 	await _step(0.7)
 	check(_game.kills == 7 and _game.enemies.size() == 2,
 		"Volley projectiles damage and kill their selected real targets")
-	check(hero.tier == 3, "Volley finishing blows count as hero kills for XP")
+	check(hero.tier == 3, "Volley damage contributes to hero leveling")
 	check(hero.ability_cooldown > 0.0, "Volley cooldown remains active after its arrows land")
 	hero.call("_physics_process", float(Data.HERO["ability_cooldown"]))
 	check(hero.ability_cooldown == 0.0 and bool(hero.use_ability()),

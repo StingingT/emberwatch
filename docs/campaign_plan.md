@@ -1,5 +1,7 @@
 # Campaign completion milestone
 
+Historical campaign implementation plan. The active milestone is now [Combat & Visual Identity Pass](combat_visual_identity_plan.md). Keep the existing six missions; tune the first two to three for the new combat and human playtest. Additional missions and persistence expansion are on HOLD.
+
 The user asked to continue finishing the game after the first playable was accepted. The architect promotes the roadmap's campaign, local saves, onboarding and settings into active implementation. The six-mission structure is the current design decision; it does not change the original combat/building loop or claim store-release completion.
 
 ## Playable campaign
@@ -9,7 +11,7 @@ The user asked to continue finishing the game after the first playable was accep
 - Complete a mission to unlock the next. Replay unlocked missions and retain the best star rating and completion time. A win earns one star; keeping at least 40%/80% of maximum Keep health earns two/three.
 - Each battle starts fresh: gold, structures, hero XP and Smith effects are local to that run. Campaign unlocks and results persist between app sessions.
 - Mission selection states the tactical variation before battle. The sixth victory gives a campaign ending and keeps all missions replayable.
-- No forced waiting, paid gates, online services or changes to hero-only kill XP.
+- No forced waiting, paid gates, online services (XP now follows hero damage under the Combat & Visual Identity milestone).
 
 ## Saves and settings
 
@@ -41,6 +43,6 @@ The user asked to continue finishing the game after the first playable was accep
 
 ## Remaining full-game work
 
-The full goal remains active after the campaign and recovery implementation. Human playtesting must assess campaign pacing, balance, clarity and enjoyment; further presentation/audio polish and release preparation remain. Native Mac/iPhone export, signing, real-device input, lifecycle and performance remain later or parallel verification and do not block compatible desktop work. GitHub publication remains a separate future action.
+The full goal remains active after the campaign and recovery implementation. Human playtesting must assess campaign pacing, balance, clarity and enjoyment; further presentation/audio polish and release preparation remain. Native Mac/iPhone export, signing, real-device input, lifecycle and performance remain later or parallel verification and do not block compatible desktop work. The public GitHub repository contains the 0.3.0 checkpoint; local 0.3.1 delivery and its playtest guide are recorded in `mobile_handoff.md` and `playtest_031.md`.
 
 The historical campaign checkpoint is recorded in [campaign_validation.md](campaign_validation.md). Current recovery evidence and outstanding capture/archive checks are recorded in [recovery_validation.md](recovery_validation.md). The implemented save/resume contract is [run_recovery_plan.md](run_recovery_plan.md).
