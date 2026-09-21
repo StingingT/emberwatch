@@ -1,151 +1,78 @@
 # Emberwatch — architecture and implementation authority
 
-Updated 2026-09-14. This document replaces the older active-scope summary, not the
-implementation evidence recorded in the historical milestone documents.
+## Active milestone: Gameplay & Progression v2
 
-## Current authority
+The user approved the v2 gameplay/progression specification and, on 2026-09-21,
+required ranged monsters to share the hero's basic attack range for both hero and
+wall targeting. See [progression_v2_workplan.md](progression_v2_workplan.md).
+The earlier architecture is preserved verbatim in
+[architecture_pre_progression_v2.md](architecture_pre_progression_v2.md).
+Its HP-fortress, unspendable-star and melee-hunter rules are historical, not the new
+milestone target. Unrelated preservation requirements still apply.
 
-The user has authorized permanent army progression, achievements, simplified
-menus, stronger building evolution, free pacing controls, and an optional
-post-battle ad reward of **50% additional Supplies**. See
-[army_progression.md](army_progression.md) for rules, ownership and acceptance.
+**Implementation status:** only the first targeting and enemy-health-bar slice is
+implemented on this branch. The current runtime still uses the old fortress HP and
+star gates. Do not call v2 complete or relabel those systems without implementing
+the coordinated outcome, persistence and UI changes. Read
+[progression_v2_validation.md](progression_v2_validation.md) for actual evidence.
 
-This explicitly supersedes the HOLD on **meta progression and its necessary
-persistence/UI integration** in `combat_visual_identity_plan.md`. Existing combat,
-hero danger, touch/readability, and device acceptance checks remain outstanding;
-they have not become accepted merely because this milestone started. A real ad
-SDK, purchases, diamonds, gear, loot boxes and new campaign missions remain on HOLD.
+## Preserved structure
 
-The implementation is a **draft, not a validated release**. Read
-[army_validation.md](army_validation.md) before asserting test coverage.
+Godot and the repository's existing engine pin/Compatibility renderer remain.
+The production entry point is `game/main.tscn -> game/army_game.gd`, extending
+`game/game.gd`. No new game root, altered launch file, reset profile, changed wave
+scheduler, or edit to the separate Three.js project is part of this slice.
 
-## Non-negotiable game rules
-
-- Godot remains the engine; keep the repository's engine pin and Compatibility
-  renderer. Portrait canvas is 720 by 1280 with an angled orthographic camera.
-- Friendly faction is red; initial enemies are green. Use friendly, original,
-  simple shapes. No realistic textures, giant decorative banners or crowded menus.
-- Control an archer through native touch movement or WASD. Aim/fire is automatic;
-  Volley uses touch or Space. Movement remains available during ordinary attacks.
-- Hero damage grants proportional run XP, capped to actual damage. Tower finishing
-  blows do not erase hero contribution. Hero death permits timed respawn; the Keep
-  determines mission defeat. Preserve the updated hunters, ranged threats and
-  Multishot/Volley/Piercing run-local choices.
-- Gold is physical, collected in-world, and spent during live combat. Gold and
-  Smith upgrades reset with a new battle. No offline battle simulation.
-- Build on authored plots only. Keep per-level building caps configurable. Do not
-  replace the current six missions, their plot restrictions or wave rosters with
-  new content as part of this patch.
-- Buildings evolve visibly during a battle: substantially larger silhouettes,
-  greater structural sophistication and appropriate materials. Archer Towers have
-  one, two and three visible red archers. Do not force all building families through
-  the same wood/stone/metal sequence. Existing three-tier access is not removed.
-- Permanent training does not change hero/monster cosmetics. Cosmetic acquisition
-  is a separate future achievement/store/loot feature, never a level-up side effect.
-
-## Entry point and ownership
-
-`game/main.tscn` now instantiates `game/army_game.gd`, which extends the existing
-`game/game.gd`. This is a narrow integration adapter, not a second combat engine.
-
-| Owner | Responsibility |
+| Owner | Responsibility in this slice |
 | --- | --- |
-| `game/game.gd` | Existing battle composition, waves, targeting, coin economy, plots, Smith, campaign and recovery coordination |
-| `game/army_game.gd` | Training at run start, Supplies settlement, recovery adapter, menu routing, pacing and optional ad-provider boundary |
-| `game/army_data.gd` | Training definitions/costs/star gates, achievements, Supplies formulas, training balance version |
-| `game/army_progression.gd` | Validated additive army ledger; purchases, first-clear records and idempotent grants |
-| `game/player_profile.gd` | Existing mission best results and settings, unchanged schema |
-| `game/atomic_json_store.gd` | Existing atomic publication and backup protection, unchanged |
-| `game/run_store.gd`, `game/run_snapshot.gd` | Existing battle journal and baseline snapshot validation, unchanged |
-| `entities/` | Hero/enemy combat, death, projectiles and physical pickups |
-| `game/building.gd` | Construction, tier stats, tower salvos, wall health and mine production |
-| `common/army_building_visuals.gd` | Staffed Archer Tower models and actual arrow origins; delegates other building families |
-| `common/visuals.gd`, `common/visual_mesh_kit.gd`, `levels/` | Existing original geometry and authored battlefield |
-| `ui/hud.gd`, `ui/touch_*.gd` | Existing combat HUD, safe areas and native touch ownership |
-| `ui/army_menu.gd` | Flat home/training/achievements/campaign/result/pause pages using the existing HUD helpers |
+| `game/game_data.gd` | Explicit enemy `attack_role`/`locomotion`; no separate ranger range or pursuit radii |
+| `game/enemy_combat_rules.gd` | Shared bow range, planar acquisition, route-blocking wall selection, swept segment intersections |
+| `entities/enemy.gd` | Ranged-only attacks; wall priority; wind-up; movement between hero shots; always-visible living health bars |
+| `entities/enemy_bolt.gd` | Fixed flight and nearest actual wall/hero impact; damage once |
+| `tests/check_enemy_range_roles.gd` | Production-scene controlled targeting, collision, bars and actor-restoration tests |
+| Existing run/profile/build/UI modules | Retained; later v2 lives/star migration must change them together |
 
-Do not add new metagame logic to `hud.gd`, mutate `GameData` constants at runtime,
-or copy the full base run controller into the new adapter. Actor methods and
-signals remain unchanged except the optional `mine_yield(base)` hook.
+Combat helpers are pure queries. They never grant currency, mutate health, reset a
+wave timer, or rebuild UI. Damage occurs in projectile/actor owners. The actor
+still awards hero XP only for actual hero damage, capped to remaining health.
 
-## Run-start training and restoration
+## Shared range and targeting
 
-Training consists of five bounded ranks each in hero damage, hero health, tower
-damage, tower attack rate, fortifications and mine output. Purchases use Supplies;
-star requirements are gates, not costs. Runtime stats use a copy of the selected
-ranks taken at battle start. Upgrades purchased while a battle is saved apply to
-its successor, not retrospectively to the saved battle.
+`EnemyCombatRules.ranged_range(game)` reads `hero.attack_range` (eight world units
+in the current balance), not `ability_range`. Both hero and wall target checks use
+this value and the hero's XZ centre-distance convention. A target must still be
+eligible at release; dead/hidden/out-of-range heroes are not shot. Hero death does
+not reduce the range against walls. Walls have priority when blocking the route.
 
-The snapshot adapter adds `army: {version, ranks}`. A legacy snapshot without this
-field means zero training. It checks this data, converts trained hero/Keep/wall
-health to baseline units for the existing strict validator, then returns the
-original, unmodified snapshot. This preserves every existing actor/lifecycle check
-while supporting higher legitimate health. It must reject invalid values, not
-clamp them into apparently valid health. Increment the army balance version if
-training interpretation changes. Restore at 1x speed, paused.
+Route blocking uses the existing conservative route-wall bounds; projectile
+interception uses the wall body. Projectiles compare wall and hero intersection
+fractions so a large frame step cannot shoot through a closer wall. Non-wall
+buildings are not targets or damage recipients. Wall attacks use travelling bolts,
+not instant damage at launch. Non-ranged enemies retain wall attacks but never
+hero melee, contact damage, retaliation or pursuit.
 
-## Rewards and persistent data
+The ranged enemy pauses for wind-up and when held by a wall, but moves along its
+route during recovery between hero shots. Explicit pause still freezes combat.
+No new wave readiness requirement is introduced.
 
-The new `user://emberwatch_army.json` is additive. Existing campaign, settings and
-battle files are not renamed, replaced or reset. The ledger contains Supplies,
-training ranks, achievement claims, first clears and per-run reward receipts.
+## Health-bar presentation
 
-Completed waves bank Supplies, including on later defeat. Each receipt stores the
-largest rewarded completed-wave count, so loading an older checkpoint does not
-pay those same waves twice. Victory adds a completion/star bonus and at most one
-first-clear bonus per mission. A terminal receipt and its wallet change are one
-atomic document. The adapter reconciles a matching terminal receipt against the
-battle journal after restart, closing the receipt-before-journal crash window.
-Historical campaign progress seeds first-clear records and earns applicable
-one-time achievement grants; stars are neither spent nor repeatedly accumulated.
+Small green fills over dark backing appear for full-health as well as wounded
+living enemies. Heights derive from mesh bounds; billboard scale preservation and
+separate transparent render priorities prevent the fill being hidden by backing.
+Bars update on accepted damage/restore and disappear at death. These are source
+changes, not evidence that phone-scale visuals have passed review.
 
-Storage failures must remain visible. Like the existing profile, failed writes
-retain session progress; they do not establish durable persistence. Unknown/newer
-or unreadable army profiles are preserved with purchases/rewards disabled. Do not
-prune old run IDs casually: that would break replay protection. The initial ledger
-has a 20,000-run limit and reports exhaustion without silently deleting receipts.
+## Compatibility and gates
 
-## Presentation and input boundaries
+The actor/hostile-projectile snapshot shapes are retained in this slice. Enemy
+balance definitions changed, so the existing content fingerprint makes earlier
+active battles incompatible; do not remove that check or reinterpret old combat
+silently. Campaign results, Supplies, ranks, settings and achievements are not
+reset. Finish an old battle on the old version or start a fresh test battle.
 
-Use flat cream panels, dark readable text and restrained red actions. A training
-page shows one category, never every system simultaneously. Achievements paginate.
-Result pages show outcome, best-performance context, normal Supplies, optional
-bonus and clear navigation. Normal rewards are already banked; declining an ad
-never withholds them. No diamonds, decorative plus-currency buttons or fake prices.
-
-All new buttons reuse native touch buttons and existing safe-area overlay scaling.
-Close overlays/reset held input before gameplay. Escape/Android Back returns from
-army pages. Settings/help keep their original handlers. Pacing uses a Start Now
-button in the existing wave-panel footprint and a free 1x/2x choice in pause.
-
-At 2x, all simulation clocks advance together and the physics tick rate scales
-accordingly. Menus/paused simulation return to normal time. Reset globals on exit.
-Completion records continue using simulation seconds, not accelerated wall time.
-
-## Optional rewarded-ad boundary
-
-No production provider is wired in this change. The game works offline; the UI
-shows ads unavailable rather than simulating a video or minting Supplies on click.
-
-A future injected provider must expose `is_available() -> bool`,
-`request(run_id) -> bool`, `reward_completed(run_id)` and `reward_failed(run_id)`.
-Completion means the real provider verified the reward event, not merely that a
-window closed. The integration accepts only its matching outstanding request.
-Grant `floor(normal_mission_supplies / 2)` once per terminal run. Achievement grants
-are separate and never boosted. Cancellation/no-fill/errors leave base rewards and
-normal navigation intact. SDK/privacy/store work needs its own reviewed task.
-
-## Continue / Hold gates
-
-CONTINUE: inspect and validate this additive implementation; fix integration and
-layout defects; render the real menus and tower tiers; tune the first three missions
-with zero/early training and no ads; finish the existing combat-feel checks.
-
-HOLD: merging or calling this release-ready before Godot import, new and existing
-regression checks, renderer captures, save/reload and normal-speed playtests pass.
-Also HOLD diamonds, store payments, equipment, cosmetic loot, paid speed, new maps,
-and unrelated recovery-framework redesign.
-
-Agents report exact files changed, tests actually executed, result markers,
-remaining uncertainty and screenshots from the real renderer. Do not cite a mockup,
-static check, or inherited old test result as evidence this new layer runs.
+CONTINUE: validate this targeting slice, then implement the remaining v2 packages
+in dependency order. HOLD merge/release claims until engine and visual checks pass.
+Do not use the preserved HP outcomes as proof that lives, finite-star purchases or
+Ballista are integrated. Live ads, diamonds, paid speed, gear and hard mode remain
+outside the current milestone.

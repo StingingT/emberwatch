@@ -1,19 +1,27 @@
 # Emberwatch agent instructions
 
-Read `docs/architecture.md`, `docs/army_progression.md` and
-`docs/army_validation.md` before changing gameplay or progression. The user's
-2026-09-14 authorization promotes army progression and simple menus; older HOLD
-statements about that scope are superseded, not the outstanding combat/device tests.
+Read `docs/architecture.md`, `docs/progression_v2_workplan.md` and
+`docs/progression_v2_validation.md` first. The user approved Gameplay & Progression
+Spec v2 and added shared hero/ranged-enemy/wall attack range on 2026-09-21.
+This supersedes conflicting older rules, not unfinished runtime acceptance.
 
-The production entry point is `game/main.tscn` -> `game/army_game.gd`. Preserve the
-updated combat in `game/game.gd`; do not replace it with the older main-branch game.
-Run both the new entry-point suite and existing regression suites. Record actual
-commands, pass markers and real renderer evidence; never infer playtest acceptance.
+This branch implements the first targeting/HP-bar slice ONLY. Fortress lives,
+spendable stars, navigation graphs, Ballista and quarry art are still outstanding.
+Do not infer completion from a document or test file being present.
 
-Keep red allies, green enemies, simple readable visuals, in-run building evolution,
-and the separation between permanent training and hero/monster cosmetics. No
-diamonds, gear, paid speed, live ad SDK or fake ad-completion button in this patch.
+Preserve `game/main.tscn -> game/army_game.gd -> game/game.gd`, existing wave pacing,
+current tower art, profile data, trained stats and proportional hero damage XP.
+Do not add a parallel game controller. Do not modify the separate web prototype.
 
-The branch is draft until engine import, runtime tests, visual inspection and
-playtesting pass. Follow the explicit CONTINUE/HOLD work packets in the progression
-specification. Do not merge or claim validation on behalf of a human reviewer.
+Only ranged enemies may damage the hero. Use the hero's actual basic attack range
+for BOTH hero and wall targets; never introduce another ranger range constant.
+Keep wall priority, shot obstruction and projectile ordering in the shared combat
+rules. Non-ranged hunters now remain fast route runners, not hero pursuers.
+
+Keep player faction red, enemies green, simple natural-material buildings, and
+cosmetics separate from stat progression. No diamonds, live ad SDK, paid speed,
+gear, store or new campaign regions. Do not merge or claim human acceptance.
+
+Run the new production-scene tests and existing regression suites, report real
+commands/result markers, and inspect rendered bars and attacks on a phone before
+merging. Static checks alone are not runtime or visual validation.

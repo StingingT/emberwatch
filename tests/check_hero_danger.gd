@@ -1,4 +1,5 @@
 extends SceneTree
+## Updated v2 contract: hero danger comes from ranged shots, never melee pursuit.
 const Game = preload("res://game/game.gd")
 var failures: int = 0
 var checks: int = 0
@@ -17,43 +18,53 @@ func _run() -> void:
 	game.persistent_profile = false
 	root.add_child(game)
 	game.start_run()
-	game.set_physics_process(false)
-	game.hero.set_physics_process(false)
+	# Manual actor steps only; captures must not advance other actors or waves.
+	game.process_mode = Node.PROCESS_MODE_DISABLED
 	game.wave_index = 0
 	game.wave_active = true
 	game.wave_cursor = 1
 	var hunter: Node3D = game.spawn_enemy("hunter")
-	hunter.set_physics_process(false)
 	hunter.position = Vector3(-3, 0, -6)
 	hunter.route_index = 4
 	game.hero.position = Vector3(-6, 0, -5)
-	var distance_before: float = hunter.position.distance_to(game.hero.position)
-	_check(hunter._hunt_hero(0.1) and hunter.position.distance_to(game.hero.position) < distance_before, "Hunter pursues nearby hero off the route")
-	game.hero.position = Vector3(-9, 0, -5)
-	_check(not hunter._hunt_hero(0.1), "Hunter refuses pursuit beyond the route leash")
+	var before_position: Vector3 = hunter.position
+	hunter._physics_process(0.1)
+	_check(hunter.position.z > before_position.z and is_equal_approx(hunter.position.x, before_position.x), "Former hunter follows its route instead of pursuing the hero")
+	_check(hunter.hero_windup == 0 and game.hero.health == 100, "Non-ranged runner cannot wind up or damage the hero")
 	game.hero.health = 0
-	_check(not hunter._hunt_hero(0.1), "Hunter abandons a dead hero")
+	before_position = hunter.position
+	hunter._physics_process(0.1)
+	_check(hunter.position.z > before_position.z, "Runner keeps moving when the hero is down")
 	game.hero.health = 100
-	await _capture(game, "hunter_encounter")
+	await _capture(game, "route_runner_encounter")
 	game.enemies.erase(hunter)
+	game._actors.remove_child(hunter)
 	hunter.queue_free()
 	game.hero.position = Vector3(-3, 0, -3)
-	var enemy: Node3D = game.spawn_enemy("goblin")
-	enemy.set_physics_process(false)
-	enemy.position = game.hero.position + Vector3(0, 0, -1)
+	var enemy: Node3D = game.spawn_enemy("ranger")
+	enemy.position = game.hero.position + Vector3(0, 0, -6)
 	enemy._physics_process(0.01)
-	_check(game.hero.health == 100 and enemy.hero_windup > 0, "Attack announces itself before damage")
+	_check(game.hero.health == 100 and enemy.hero_windup > 0, "Ranged attack announces itself before damage")
 	await _capture(game, "hero_attack_warning")
+	enemy._physics_process(0.7)
+	_check(game._projectiles.get_child_count() == 1 and game.hero.health == 100, "Release launches a bolt without instant damage")
+	var bolt: Node3D = game._projectiles.get_child(0)
 	game.hero.position.x += 3
+	bolt._physics_process(1.0)
+	_check(game.hero.health == 100, "Moving after release dodges the fixed-destination bolt")
+	game._projectiles.remove_child(bolt)
+	bolt.queue_free()
+	enemy._attack_remaining = 0.0
+	enemy._physics_process(0.01)
 	enemy._physics_process(0.7)
-	_check(game.hero.health == 100, "Leaving the marked area dodges damage")
-	enemy.position = game.hero.position + Vector3(0, 0, -1)
-	enemy._physics_process(1.3)
-	enemy._physics_process(0.7)
-	_check(game.hero.health == 91, "Remaining inside the strike takes one configured hit")
+	bolt = game._projectiles.get_child(0)
+	bolt._physics_process(1.0)
+	_check(game.hero.health == 89, "A stationary hero takes one configured ranged hit")
+	game._projectiles.remove_child(bolt)
+	bolt.queue_free()
 	game.pause_run()
 	enemy._physics_process(5)
-	_check(game.hero.health == 91, "Pause prevents enemy attack damage")
+	_check(game.hero.health == 89, "Pause prevents enemy attack damage")
 	game.resume_run()
 	game.hero.take_damage(1000)
 	_check(not game.hero.is_alive() and game.is_playing(), "Hero death leaves the defense running")
@@ -69,7 +80,6 @@ func _run() -> void:
 	var saved: Dictionary = game.capture_run_snapshot()
 	_check(game.validate_run_snapshot(saved)["ok"], "Checkpoint accepts valid downed combat state")
 	_check(game.restore_run_snapshot(saved) and not game.hero.is_alive() and is_equal_approx(game.hero.xp, 0.4), "Restoration preserves fractional XP, death and remaining respawn time")
-	game.hero.set_physics_process(false)
 	game.hero._physics_process(20)
 	_check(not game.hero.is_alive(), "Paused restoration cannot advance respawn")
 	game.resume_run()
