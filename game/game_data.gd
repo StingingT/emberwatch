@@ -11,15 +11,15 @@ const HERO: Dictionary = {
 	"ability_targets": 7, "ability_range": 11.0, "coin_radius": 3.3,
 }
 const ENEMIES: Dictionary = {
-	"ranger": {"id": "ranger", "health": 26.0, "speed": 1.7, "damage": 11.0,
-		"attack_interval": 2.1, "coins": 12, "xp": 5, "range": 7.0},
-	"hunter": {"id": "hunter", "health": 42.0, "speed": 3.6, "damage": 13.0,
-		"attack_interval": 1.4, "coins": 14, "xp": 7, "pursuit_range": 7.0, "route_leash": 5.0},
-	"goblin": {"id": "goblin", "health": 30.0, "speed": 2.0, "damage": 9.0,
+	"ranger": {"id": "ranger", "attack_role": "ranged", "locomotion": "ground", "health": 26.0, "speed": 1.7, "damage": 11.0,
+		"attack_interval": 2.1, "coins": 12, "xp": 5},
+	"hunter": {"id": "hunter", "attack_role": "route_only", "locomotion": "ground", "health": 42.0, "speed": 3.6, "damage": 13.0,
+		"attack_interval": 1.4, "coins": 14, "xp": 7},
+	"goblin": {"id": "goblin", "attack_role": "route_only", "locomotion": "ground", "health": 30.0, "speed": 2.0, "damage": 9.0,
 		"attack_interval": 1.2, "coins": 9, "xp": 4},
-	"scout": {"id": "scout", "health": 24.0, "speed": 3.1, "damage": 7.0,
+	"scout": {"id": "scout", "attack_role": "route_only", "locomotion": "ground", "health": 24.0, "speed": 3.1, "damage": 7.0,
 		"attack_interval": 0.9, "coins": 10, "xp": 5},
-	"brute": {"id": "brute", "health": 110.0, "speed": 1.25, "damage": 20.0,
+	"brute": {"id": "brute", "attack_role": "route_only", "locomotion": "ground", "health": 110.0, "speed": 1.25, "damage": 20.0,
 		"attack_interval": 1.5, "coins": 22, "xp": 10},
 }
 const HERO_THREAT: Dictionary = {"windup": 0.7, "reach": 2.0, "hit_radius": 1.2}
@@ -57,7 +57,7 @@ const FOOTPRINTS: Dictionary = {"hero_margin": 0.7, "keep_radius_squared": 5.8,
 static func building_footprint_contains(at: Vector3, center: Vector3, kind: String) -> bool:
 	var offset: Vector3 = at - center
 	if kind == "wall":
-		return absf(offset.x) < float(FOOTPRINTS["wall_half_width"]) and absf(offset.z) < float(FOOTPRINTS["wall_half_depth"])
+		return absf(offset.x) < float(FOOTPRINTS["wall_half_width"] ) and absf(offset.z) < float(FOOTPRINTS["wall_half_depth"])
 	return offset.length_squared() < float(FOOTPRINTS["building_radius_squared"])
 
 static func level() -> Dictionary:

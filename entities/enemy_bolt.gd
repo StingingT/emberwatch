@@ -1,6 +1,8 @@
 extends Node3D
-## A fixed-destination shot. The launcher may die without removing its projectile.
+## Fixed-destination hostile shot. Walls and the hero are swept in travel order.
+## A wall-targeted shot uses the same flight/range as a hero-targeted shot.
 const Visuals = preload("res://common/visuals.gd")
+const CombatRules = preload("res://game/enemy_combat_rules.gd")
 var game: Node
 var destination: Vector3
 var damage: float
@@ -19,6 +21,8 @@ func setup(owner_game: Node, start: Vector3, aim: Vector3, amount: float) -> voi
 		look_at(destination, Vector3.UP)
 
 func snapshot_target() -> Node3D:
+	# Existing serializer uses the hero as the hostile-projectile sentinel, not
+	# as a homing target. Flight is determined exclusively by saved destination.
 	return null if impacted or is_queued_for_deletion() else game.get_hero()
 
 func capture_state() -> Dictionary:
@@ -33,13 +37,21 @@ func _physics_process(delta: float) -> void:
 	if impacted or not game.is_playing():
 		return
 	var next: Vector3 = position.move_toward(destination, speed * delta)
+	var wall_hit: Dictionary = CombatRules.first_wall_hit(game, position, next)
 	var hero: Node3D = game.get_hero()
-	var center: Vector3 = hero.position + Vector3(0, 0.85, 0)
-	# Swept collision prevents fast bolts from skipping through the hero.
-	var nearest: Vector3 = Geometry3D.get_closest_point_to_segment(center, position, next)
-	if hero.is_alive() and nearest.distance_to(center) <= 0.55:
-		hero.take_damage(damage)
+	var hero_time: float = -1.0
+	if is_instance_valid(hero) and hero.is_alive():
+		var center: Vector3 = hero.global_position + Vector3(0, CombatRules.SHOT_HEIGHT, 0)
+		hero_time = CombatRules.segment_sphere_hit(position, next, center, CombatRules.HERO_HIT_RADIUS)
+	# A wall wins an exact tie: a hero protected by that wall is not hit through it.
+	if not wall_hit.is_empty() and (hero_time < 0.0 or float(wall_hit["time"]) <= hero_time):
 		impacted = true
+		wall_hit["wall"].take_damage(damage, "enemy")
+		queue_free()
+		return
+	if hero_time >= 0.0:
+		impacted = true
+		hero.take_damage(damage)
 		queue_free()
 		return
 	position = next
